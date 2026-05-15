@@ -1,7 +1,21 @@
 import os
+import sys
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Debug: print which required vars are present or missing
+required = [
+    "INNGEST_EVENT_KEY",
+    "INNGEST_SIGNING_KEY",
+    "GEMINI_API_KEY",
+    "PINECONE_API_KEY",
+    "DATABASE_URL",
+    "BLOB_READ_WRITE_TOKEN",
+]
+for var in required:
+    val = os.environ.get(var)
+    print(f"[startup] {var}: {'SET' if val else 'MISSING'}", file=sys.stderr)
 
 import inngest.fast_api
 from fastapi import FastAPI

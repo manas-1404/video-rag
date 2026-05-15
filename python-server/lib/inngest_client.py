@@ -1,5 +1,12 @@
 import os
 import inngest
+from dotenv import load_dotenv
+
+load_dotenv()
+
+_missing = [v for v in ["INNGEST_EVENT_KEY", "INNGEST_SIGNING_KEY"] if not os.environ.get(v)]
+if _missing:
+    raise RuntimeError(f"Missing required environment variables: {', '.join(_missing)}")
 
 client = inngest.Inngest(
     app_id="video-rag",

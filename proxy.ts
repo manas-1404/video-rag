@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 const PROTECTED = ["/upload", "/video"];
 const AUTH_PAGES = ["/login", "/register"];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const isProtected = PROTECTED.some((p) => pathname.startsWith(p));

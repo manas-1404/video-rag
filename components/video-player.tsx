@@ -9,12 +9,16 @@ type Props = {
 };
 
 export default function VideoPlayer({ url, seekTo }: Props) {
-  const playerRef = useRef<ReactPlayer>(null);
+  const playerRef = useRef<HTMLVideoElement>(null);
   const prevSeekRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (seekTo !== null && seekTo !== prevSeekRef.current && playerRef.current) {
-      playerRef.current.seekTo(seekTo / 1000, "seconds");
+    if (
+      seekTo !== null &&
+      seekTo !== prevSeekRef.current &&
+      playerRef.current
+    ) {
+      playerRef.current.currentTime = seekTo / 1000;
       prevSeekRef.current = seekTo;
     }
   }, [seekTo]);
@@ -23,15 +27,10 @@ export default function VideoPlayer({ url, seekTo }: Props) {
     <div className="rounded-xl overflow-hidden bg-black aspect-video w-full">
       <ReactPlayer
         ref={playerRef}
-        url={url}
+        src={url}
         width="100%"
         height="100%"
         controls
-        config={{
-          file: {
-            attributes: { controlsList: "nodownload" },
-          },
-        }}
       />
     </div>
   );
