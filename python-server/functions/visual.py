@@ -21,7 +21,7 @@ BATCH_SIZE = 10
     fn_id="process-visual",
     trigger=inngest.TriggerEvent(event="extraction/complete"),
 )
-async def process_visual(ctx: inngest.Context, step: inngest.Step) -> None:
+async def process_visual(ctx: inngest.Context) -> None:
     video_id: str = ctx.event.data["videoId"]
     frame_urls: list[str] = ctx.event.data["frameUrls"]
 
@@ -31,12 +31,12 @@ async def process_visual(ctx: inngest.Context, step: inngest.Step) -> None:
     ]
 
     for batch_idx, batch in enumerate(batches):
-        await step.run(
+        await ctx.step.run(
             f"process-frame-batch-{batch_idx}",
             lambda b=batch, bi=batch_idx: _process_batch(video_id, b, bi),
         )
 
-    await step.send_event(
+    await ctx.step.send_event(
         "emit-visual-complete",
         inngest.Event(name="visual/complete", data={"videoId": video_id}),
     )

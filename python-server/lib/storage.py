@@ -7,6 +7,8 @@ from pathlib import Path
 
 BLOB_READ_WRITE_TOKEN = os.environ["BLOB_READ_WRITE_TOKEN"]
 
+VERCEL_BLOB_API = "https://blob.vercel-storage.com"
+
 
 def download_to_temp(url: str, suffix: str) -> str:
     """Download a file from a URL to a named temp file. Caller must delete."""
@@ -22,16 +24,15 @@ def download_to_temp(url: str, suffix: str) -> str:
 
 def upload_file(local_path: str, blob_pathname: str) -> str:
     """Upload a local file to Vercel Blob and return the public URL."""
-    url = f"https://blob.vercel-storage.com/{blob_pathname}"
-
     with open(local_path, "rb") as f:
         resp = requests.put(
-            url,
+            f"{VERCEL_BLOB_API}/{blob_pathname}",
             data=f,
             headers={
                 "authorization": f"Bearer {BLOB_READ_WRITE_TOKEN}",
-                "x-content-type": _content_type(local_path),
-                "x-cache-control-max-age": "31536000",
+                "content-type": _content_type(local_path),
+                "x-api-version": "7",
+                "cache-control": "public, max-age=31536000",
             },
             timeout=300,
         )

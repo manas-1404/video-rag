@@ -16,37 +16,37 @@ from lib.inngest_client import client
     fn_id="extract-frames-and-audio",
     trigger=inngest.TriggerEvent(event="video/uploaded"),
 )
-async def extract_frames_and_audio(ctx: inngest.Context, step: inngest.Step) -> None:
+async def extract_frames_and_audio(ctx: inngest.Context) -> None:
     video_id: str = ctx.event.data["videoId"]
     blob_url: str = ctx.event.data["blobUrl"]
 
-    await step.run("update-status-extracting", lambda: db.update_video_status(video_id, "EXTRACTING"))
+    await ctx.step.run("update-status-extracting", lambda: db.update_video_status(video_id, "EXTRACTING"))
 
-    video_path = await step.run(
+    video_path = await ctx.step.run(
         "download-video",
         lambda: storage.download_to_temp(blob_url, ".mp4"),
     )
 
     audio_path: str | None = None
     try:
-        audio_path, frame_paths = await step.run(
+        audio_path, frame_paths = await ctx.step.run(
             "run-ffmpeg",
             lambda: _run_ffmpeg(video_path),
         )
 
-        audio_url = await step.run(
+        audio_url = await ctx.step.run(
             "upload-audio",
             lambda: storage.upload_file(audio_path, f"videos/{video_id}/audio.wav"),
         )
 
         db.update_video_audio_url(video_id, audio_url)
 
-        frame_urls: list[str] = await step.run(
+        frame_urls: list[str] = await ctx.step.run(
             "upload-frames",
             lambda: _upload_frames(video_id, frame_paths),
         )
 
-        await step.send_event(
+        await ctx.step.send_event(
             "emit-extraction-complete",
             inngest.Event(
                 name="extraction/complete",

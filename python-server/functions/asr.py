@@ -33,27 +33,27 @@ def _get_model() -> WhisperModel:
     fn_id="process-asr",
     trigger=inngest.TriggerEvent(event="extraction/complete"),
 )
-async def process_asr(ctx: inngest.Context, step: inngest.Step) -> None:
+async def process_asr(ctx: inngest.Context) -> None:
     video_id: str = ctx.event.data["videoId"]
     audio_url: str = ctx.event.data["audioUrl"]
 
-    await step.run("update-status-processing", lambda: db.update_video_status(video_id, "PROCESSING"))
+    await ctx.step.run("update-status-processing", lambda: db.update_video_status(video_id, "PROCESSING"))
 
-    audio_path = await step.run(
+    audio_path = await ctx.step.run(
         "download-audio",
         lambda: storage.download_to_temp(audio_url, ".wav"),
     )
 
-    words = await step.run("transcribe", lambda: _transcribe(audio_path))
+    words = await ctx.step.run("transcribe", lambda: _transcribe(audio_path))
 
     chunks = _group_into_chunks(words)
 
-    await step.run(
+    await ctx.step.run(
         "embed-and-store-chunks",
         lambda: _embed_and_store(video_id, chunks, words),
     )
 
-    await step.send_event(
+    await ctx.step.send_event(
         "emit-asr-complete",
         inngest.Event(name="asr/complete", data={"videoId": video_id}),
     )
