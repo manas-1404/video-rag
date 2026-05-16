@@ -1,7 +1,7 @@
 fastapi==0.115.6
 uvicorn[standard]==0.32.1
 inngest==0.5.18
-google-generativeai==0.8.3
+google-genai==1.16.0
 pinecone-client==5.0.1
 faster-whisper==1.1.1
 ffmpeg-python==0.2.0

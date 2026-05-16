@@ -1,4 +1,5 @@
 import os
+import time
 from pinecone import Pinecone, ServerlessSpec
 
 _pc = Pinecone(api_key=os.environ["PINECONE_API_KEY"])
@@ -14,10 +15,18 @@ def get_index():
         if INDEX_NAME not in existing:
             _pc.create_index(
                 name=INDEX_NAME,
-                dimension=768,
+                dimension=3072,
                 metric="cosine",
                 spec=ServerlessSpec(cloud="aws", region="us-east-1"),
             )
+            # Wait until index is ready (max 90s)
+            for _ in range(30):
+                status = _pc.describe_index(INDEX_NAME).status
+                print(f"[pinecone] index state: {status.state}, ready: {status.ready}", flush=True)
+                if status.ready:
+                    break
+                time.sleep(3)
+
         _index = _pc.Index(INDEX_NAME)
     return _index
 

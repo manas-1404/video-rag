@@ -1,13 +1,9 @@
 import os
-import base64
 import json
-import google.generativeai as genai
-from pathlib import Path
+from google import genai
+from google.genai import types
 
-genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-
-_flash = genai.GenerativeModel("gemini-2.0-flash")
-_embedding_model = "models/text-embedding-004"
+_client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
 FRAME_ANALYSIS_PROMPT = """Analyze this video frame carefully.
 
@@ -23,20 +19,21 @@ If no text is visible, return an empty array for ocr_text."""
 def analyze_frame(image_path: str) -> dict:
     """Run Gemini 2.0 Flash on a single frame. Returns {ocr_text, scene_description}."""
     with open(image_path, "rb") as f:
-        image_data = base64.b64encode(f.read()).decode("utf-8")
+        image_bytes = f.read()
 
+    from pathlib import Path
     ext = Path(image_path).suffix.lower()
     mime = "image/jpeg" if ext in (".jpg", ".jpeg") else "image/png"
 
-    response = _flash.generate_content(
-        [
-            {"mime_type": mime, "data": image_data},
+    response = _client.models.generate_content(
+        model="gemini-2.0-flash",
+        contents=[
+            types.Part.from_bytes(data=image_bytes, mime_type=mime),
             FRAME_ANALYSIS_PROMPT,
-        ]
+        ],
     )
 
     text = response.text.strip()
-    # Strip markdown code fences if present
     if text.startswith("```"):
         text = text.split("```")[1]
         if text.startswith("json"):
@@ -45,6 +42,11 @@ def analyze_frame(image_path: str) -> dict:
 
 
 def embed_text(text: str) -> list[float]:
-    """Embed a text string using Gemini text-embedding-004."""
-    result = genai.embed_content(model=_embedding_model, content=text)
-    return result["embedding"]
+    """Embed a text string using Gemini embedding model."""
+    model = "gemini-embedding-001"
+    print(f"[gemini] embed_text using model: {model}", flush=True)
+    result = _client.models.embed_content(
+        model=model,
+        contents=text,
+    )
+    return result.embeddings[0].values
