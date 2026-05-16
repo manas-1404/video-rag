@@ -1,8 +1,7 @@
 import { inngest } from "./client";
 
 export const dummy = inngest.createFunction(
-  { id: "dummy" },
-  { event: "dummy/ping" },
+  { id: "dummy", triggers: [{ event: "dummy/ping" }] },
   async () => {
     return { ok: true };
   }
