@@ -2,56 +2,17 @@
 
 import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { upload } from "@vercel/blob/client";
 
 type Phase =
   | { type: "idle" }
-  | { type: "uploading"; progress: number }
-  | { type: "processing"; videoId: string; status: string }
+  | { type: "uploading" }
   | { type: "error"; message: string };
-
-const STATUS_LABELS: Record<string, string> = {
-  PENDING: "Queued for processing…",
-  EXTRACTING: "Extracting frames and audio…",
-  PROCESSING: "Transcribing audio and analysing frames…",
-  READY: "Ready!",
-  ERROR: "Processing failed",
-};
 
 export default function UploadForm() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [phase, setPhase] = useState<Phase>({ type: "idle" });
   const [dragging, setDragging] = useState(false);
-
-  function stopPolling() {
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
-  }
-
-  function startPolling(videoId: string) {
-    pollRef.current = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/status/${videoId}`);
-        const data = await res.json();
-
-        setPhase({ type: "processing", videoId, status: data.status });
-
-        if (data.status === "READY") {
-          stopPolling();
-          router.push(`/video/${videoId}`);
-        } else if (data.status === "ERROR") {
-          stopPolling();
-          setPhase({ type: "error", message: data.errorMessage ?? "Processing failed" });
-        }
-      } catch {
-        // transient network error — keep polling
-      }
-    }, 3000);
-  }
 
   async function handleFile(file: File) {
     if (!file.type.startsWith("video/")) {
@@ -60,31 +21,30 @@ export default function UploadForm() {
     }
 
     try {
-      setPhase({ type: "uploading", progress: 0 });
+      setPhase({ type: "uploading" });
+      console.log("[upload] sending file:", file.name, "size:", file.size, "type:", file.type);
 
-      const blob = await upload(file.name, file, {
-        access: "public",
-        handleUploadUrl: "/api/blob-token",
-        onUploadProgress: ({ percentage }) => {
-          setPhase({ type: "uploading", progress: percentage });
-        },
-      });
+      const form = new FormData();
+      form.append("file", file);
 
       const res = await fetch("/api/upload", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ blobUrl: blob.url, title: file.name }),
+        body: form,
       });
+
+      console.log("[upload] response status:", res.status);
 
       if (!res.ok) {
         const err = await res.json();
+        console.error("[upload] error:", err);
         throw new Error(err.error ?? "Upload failed");
       }
 
-      const { videoId } = await res.json();
-      setPhase({ type: "processing", videoId, status: "PENDING" });
-      startPolling(videoId);
+      const data = await res.json();
+      console.log("[upload] done:", data);
+      router.push("/videos");
     } catch (e) {
+      console.error("[upload] caught:", e);
       setPhase({ type: "error", message: (e as Error).message });
     }
   }
@@ -111,30 +71,10 @@ export default function UploadForm() {
   if (phase.type === "uploading") {
     return (
       <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-8 text-center space-y-4">
-        <p className="text-zinc-300 text-sm font-medium">Uploading video…</p>
-        <div className="w-full bg-zinc-800 rounded-full h-2">
-          <div
-            className="bg-violet-500 h-2 rounded-full transition-all duration-300"
-            style={{ width: `${phase.progress}%` }}
-          />
-        </div>
-        <p className="text-zinc-500 text-xs">{phase.progress}%</p>
-      </div>
-    );
-  }
-
-  if (phase.type === "processing") {
-    return (
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-8 text-center space-y-4">
         <div className="flex items-center justify-center">
           <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
         </div>
-        <p className="text-zinc-300 text-sm font-medium">
-          {STATUS_LABELS[phase.status] ?? "Processing…"}
-        </p>
-        <p className="text-zinc-600 text-xs">
-          This can take a few minutes depending on video length.
-        </p>
+        <p className="text-zinc-300 text-sm font-medium">Uploading video…</p>
       </div>
     );
   }
