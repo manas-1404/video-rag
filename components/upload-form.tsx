@@ -2,10 +2,11 @@
 
 import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { upload } from "@vercel/blob/client";
 
 type Phase =
   | { type: "idle" }
-  | { type: "uploading" }
+  | { type: "uploading"; progress: number }
   | { type: "error"; message: string };
 
 export default function UploadForm() {
@@ -21,30 +22,29 @@ export default function UploadForm() {
     }
 
     try {
-      setPhase({ type: "uploading" });
-      console.log("[upload] sending file:", file.name, "size:", file.size, "type:", file.type);
+      setPhase({ type: "uploading", progress: 0 });
 
-      const form = new FormData();
-      form.append("file", file);
+      const blob = await upload(file.name, file, {
+        access: "private",
+        handleUploadUrl: "/api/blob-token",
+        onUploadProgress: ({ percentage }) => {
+          setPhase({ type: "uploading", progress: percentage });
+        },
+      });
 
       const res = await fetch("/api/upload", {
         method: "POST",
-        body: form,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ blobUrl: blob.url, title: file.name }),
       });
-
-      console.log("[upload] response status:", res.status);
 
       if (!res.ok) {
         const err = await res.json();
-        console.error("[upload] error:", err);
         throw new Error(err.error ?? "Upload failed");
       }
 
-      const data = await res.json();
-      console.log("[upload] done:", data);
       router.push("/videos");
     } catch (e) {
-      console.error("[upload] caught:", e);
       setPhase({ type: "error", message: (e as Error).message });
     }
   }
@@ -56,13 +56,8 @@ export default function UploadForm() {
     if (file) handleFile(file);
   }, []);
 
-  const onDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragging(true);
-  };
-
+  const onDragOver = (e: React.DragEvent) => { e.preventDefault(); setDragging(true); };
   const onDragLeave = () => setDragging(false);
-
   const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) handleFile(file);
@@ -71,10 +66,14 @@ export default function UploadForm() {
   if (phase.type === "uploading") {
     return (
       <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-8 text-center space-y-4">
-        <div className="flex items-center justify-center">
-          <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
-        </div>
         <p className="text-zinc-300 text-sm font-medium">Uploading video…</p>
+        <div className="w-full bg-zinc-800 rounded-full h-2">
+          <div
+            className="bg-violet-500 h-2 rounded-full transition-all duration-300"
+            style={{ width: `${phase.progress}%` }}
+          />
+        </div>
+        <p className="text-zinc-500 text-xs">{phase.progress}%</p>
       </div>
     );
   }
@@ -107,18 +106,10 @@ export default function UploadForm() {
         }
       `}
     >
-      <input
-        ref={inputRef}
-        type="file"
-        accept="video/*"
-        className="hidden"
-        onChange={onInputChange}
-      />
+      <input ref={inputRef} type="file" accept="video/*" className="hidden" onChange={onInputChange} />
       <div className="space-y-3">
         <div className="text-4xl text-zinc-600">↑</div>
-        <p className="text-zinc-300 font-medium">
-          Drop your video here, or click to browse
-        </p>
+        <p className="text-zinc-300 font-medium">Drop your video here, or click to browse</p>
         <p className="text-zinc-600 text-sm">MP4, MOV, WebM — up to 500 MB</p>
       </div>
     </div>
