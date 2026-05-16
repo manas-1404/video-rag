@@ -24,7 +24,9 @@ export default function UploadForm() {
     try {
       setPhase({ type: "uploading", progress: 0 });
 
-      const blob = await upload(file.name, file, {
+      const ext = file.name.split(".").pop();
+      const randomName = `${crypto.randomUUID()}.${ext}`;
+      const blob = await upload(randomName, file, {
         access: "private",
         handleUploadUrl: "/api/blob-token",
         onUploadProgress: ({ percentage }) => {
