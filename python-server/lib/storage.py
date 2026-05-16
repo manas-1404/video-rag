@@ -1,43 +1,38 @@
-"""Helpers for downloading from and uploading to Vercel Blob."""
+"""Helpers for uploading/downloading files via Railway S3-compatible bucket."""
 
 import os
-import requests
 import tempfile
+import boto3
 from pathlib import Path
 
-BLOB_READ_WRITE_TOKEN = os.environ["BLOB_READ_WRITE_TOKEN"]
+BUCKET_NAME = os.environ["BUCKET_NAME"]
 
-VERCEL_BLOB_API = "https://blob.vercel-storage.com"
+_s3 = boto3.client(
+    "s3",
+    endpoint_url=os.environ["BUCKET_ENDPOINT_URL"],
+    aws_access_key_id=os.environ["BUCKET_ACCESS_KEY_ID"],
+    aws_secret_access_key=os.environ["BUCKET_SECRET_ACCESS_KEY"],
+    region_name=os.environ.get("BUCKET_REGION", "auto"),
+)
 
 
-def download_to_temp(url: str, suffix: str) -> str:
-    """Download a file from a URL to a named temp file. Caller must delete."""
-    resp = requests.get(url, stream=True, timeout=300)
-    resp.raise_for_status()
-
+def download_to_temp(key: str, suffix: str) -> str:
+    """Download an object from the bucket to a temp file. Caller must delete."""
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
-    for chunk in resp.iter_content(chunk_size=8192):
-        tmp.write(chunk)
     tmp.close()
+    _s3.download_file(BUCKET_NAME, key, tmp.name)
     return tmp.name
 
 
-def upload_file(local_path: str, blob_pathname: str) -> str:
-    """Upload a local file to Vercel Blob and return the public URL."""
-    with open(local_path, "rb") as f:
-        resp = requests.put(
-            f"{VERCEL_BLOB_API}/{blob_pathname}",
-            data=f,
-            headers={
-                "authorization": f"Bearer {BLOB_READ_WRITE_TOKEN}",
-                "content-type": _content_type(local_path),
-                "x-api-version": "7",
-                "cache-control": "public, max-age=31536000",
-            },
-            timeout=300,
-        )
-    resp.raise_for_status()
-    return resp.json()["url"]
+def upload_file(local_path: str, key: str) -> str:
+    """Upload a local file to the bucket and return the object key."""
+    _s3.upload_file(
+        local_path,
+        BUCKET_NAME,
+        key,
+        ExtraArgs={"ContentType": _content_type(local_path)},
+    )
+    return key
 
 
 def _content_type(path: str) -> str:

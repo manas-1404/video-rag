@@ -2,7 +2,6 @@
 
 import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { upload } from "@vercel/blob/client";
 
 type Phase =
   | { type: "idle" }
@@ -24,20 +23,28 @@ export default function UploadForm() {
     try {
       setPhase({ type: "uploading", progress: 0 });
 
-      const ext = file.name.split(".").pop();
-      const randomName = `${crypto.randomUUID()}.${ext}`;
-      const blob = await upload(randomName, file, {
-        access: "private",
-        handleUploadUrl: "/api/blob-token",
-        onUploadProgress: ({ percentage }) => {
-          setPhase({ type: "uploading", progress: percentage });
-        },
+      const { url: presignedUrl, key } = await fetch(
+        `/api/blob-token?contentType=${encodeURIComponent(file.type)}`,
+      ).then((r) => r.json());
+
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) {
+            setPhase({ type: "uploading", progress: Math.round((e.loaded / e.total) * 100) });
+          }
+        };
+        xhr.onload = () => (xhr.status < 400 ? resolve() : reject(new Error(`Upload failed: ${xhr.status}`)));
+        xhr.onerror = () => reject(new Error("Upload failed"));
+        xhr.open("PUT", presignedUrl);
+        xhr.setRequestHeader("content-type", file.type);
+        xhr.send(file);
       });
 
       const res = await fetch("/api/upload", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ blobUrl: blob.url, title: file.name }),
+        body: JSON.stringify({ objectKey: key, title: file.name }),
       });
 
       if (!res.ok) {

@@ -1,42 +1,22 @@
 import { auth } from "@/lib/auth";
-import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
+import { s3, BUCKET_NAME } from "@/lib/s3";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-export async function POST(request: Request) {
+export async function GET(request: Request) {
   const session = await auth.api.getSession({ headers: request.headers });
-  if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = (await request.json()) as HandleUploadBody;
-  console.log("[blob-token] body type:", (body as { type?: string }).type);
+  const { searchParams } = new URL(request.url);
+  const contentType = searchParams.get("contentType") || "video/mp4";
+  const ext = contentType.split("/")[1]?.split(";")[0] || "mp4";
+  const key = `videos/${crypto.randomUUID()}.${ext}`;
 
-  try {
-    const jsonResponse = await handleUpload({
-      body,
-      request,
-      onBeforeGenerateToken: async (pathname) => {
-        console.log("[blob-token] generating token for:", pathname);
-        return {
-          allowedContentTypes: [
-            "video/mp4",
-            "video/quicktime",
-            "video/webm",
-            "video/x-msvideo",
-          ],
-          maximumSizeInBytes: 500 * 1024 * 1024,
-          callbackUrl: `${process.env.BETTER_AUTH_URL}/api/blob-token`,
-          tokenPayload: JSON.stringify({ userId: session.user.id }),
-        };
-      },
-      onUploadCompleted: async ({ blob, tokenPayload }) => {
-        console.log("[blob-token] upload completed:", blob.url, tokenPayload);
-      },
-    });
+  const url = await getSignedUrl(
+    s3,
+    new PutObjectCommand({ Bucket: BUCKET_NAME, Key: key, ContentType: contentType }),
+    { expiresIn: 3600 },
+  );
 
-    console.log("[blob-token] handleUpload response:", jsonResponse);
-    return Response.json(jsonResponse);
-  } catch (e) {
-    console.error("[blob-token] error:", e);
-    return Response.json({ error: (e as Error).message }, { status: 400 });
-  }
+  return Response.json({ url, key });
 }

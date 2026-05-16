@@ -5,7 +5,7 @@ import { inngest } from "@/lib/inngest/client";
 import { z } from "zod";
 
 const bodySchema = z.object({
-  blobUrl: z.string().url(),
+  objectKey: z.string().min(1),
   title: z.string().optional(),
 });
 
@@ -21,13 +21,13 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid request" }, { status: 400 });
   }
 
-  const { blobUrl, title } = parsed.data;
+  const { objectKey, title } = parsed.data;
 
   const [video] = await db
     .insert(videos)
     .values({
       userId: session.user.id,
-      blobUrl,
+      blobUrl: objectKey,
       title: title ?? null,
       status: "PENDING",
     })
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
   try {
     await inngest.send({
       name: "video/uploaded",
-      data: { videoId: video.id, blobUrl, userId: session.user.id },
+      data: { videoId: video.id, blobUrl: objectKey, userId: session.user.id },
     });
   } catch (e) {
     console.error("[upload] inngest error:", e);

@@ -7,6 +7,7 @@ faster-whisper==1.1.1
 ffmpeg-python==0.2.0
 psycopg2-binary==2.9.10
 requests==2.32.3
+boto3==1.38.0
 python-multipart==0.0.18
 pillow==11.0.0
 python-dotenv==1.0.1

@@ -1,6 +1,9 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { videos } from "@/lib/db/schema";
+import { s3, BUCKET_NAME } from "@/lib/s3";
+import { GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { eq, and } from "drizzle-orm";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
@@ -29,10 +32,16 @@ export default async function VideoPage({
   if (!video) notFound();
   if (video.status !== "READY") redirect("/upload");
 
+  const videoUrl = await getSignedUrl(
+    s3,
+    new GetObjectCommand({ Bucket: BUCKET_NAME, Key: video.blobUrl }),
+    { expiresIn: 3600 },
+  );
+
   return (
     <QueryInterface
       videoId={video.id}
-      videoUrl={video.blobUrl}
+      videoUrl={videoUrl}
       title={video.title ?? "Untitled video"}
     />
   );
