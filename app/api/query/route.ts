@@ -9,7 +9,10 @@ import { z } from "zod";
 if (!process.env.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not set");
 if (!process.env.PINECONE_API_KEY) throw new Error("PINECONE_API_KEY is not set");
 
-const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const genAI = new GoogleGenAI({
+  enterprise: true,
+  apiKey: process.env.GEMINI_API_KEY,
+});
 const pinecone = new Pinecone({ apiKey: process.env.PINECONE_API_KEY });
 
 const bodySchema = z.object({
