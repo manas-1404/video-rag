@@ -49,6 +49,12 @@ def _configure_bucket_cors():
     )
     print("[startup] Bucket CORS configured", file=sys.stderr)
 
+from lib.gemini_client import _client
+response = _client.models.generate_content(model="gemini-2.5-flash", contents="tell me a short story in 2 line")
+print(response)
+print(f"[startup] Gemini API check: — {response.text.strip()}", file=sys.stderr)
+
+
 try:
     _configure_bucket_cors()
 except Exception as e:

@@ -3,7 +3,7 @@ import json
 from google import genai
 from google.genai import types
 
-_client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+_client = genai.Client(vertexai=True, api_key=os.environ["GEMINI_API_KEY"])
 
 FRAME_ANALYSIS_PROMPT = """Analyze this video frame carefully.
 
@@ -17,7 +17,7 @@ If no text is visible, return an empty array for ocr_text."""
 
 
 def analyze_frame(image_path: str) -> dict:
-    """Run Gemini 2.0 Flash on a single frame. Returns {ocr_text, scene_description}."""
+    """Run Gemini 2.5 Flash on a single frame. Returns {ocr_text, scene_description}."""
     with open(image_path, "rb") as f:
         image_bytes = f.read()
 
@@ -26,7 +26,7 @@ def analyze_frame(image_path: str) -> dict:
     mime = "image/jpeg" if ext in (".jpg", ".jpeg") else "image/png"
 
     response = _client.models.generate_content(
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash",
         contents=[
             types.Part.from_bytes(data=image_bytes, mime_type=mime),
             FRAME_ANALYSIS_PROMPT,
