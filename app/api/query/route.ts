@@ -1,8 +1,8 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { videos, asrChunks, ocrFrames, sceneFrames } from "@/lib/db/schema";
+import { videos, ocrFrames } from "@/lib/db/schema";
 import { eq, and, sql } from "drizzle-orm";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { ExternalAccountClient } from "google-auth-library";
 import { getVercelOidcToken } from "@vercel/oidc";
 import { Pinecone } from "@pinecone-database/pinecone";
@@ -45,13 +45,123 @@ const bodySchema = z.object({
   question: z.string().min(1).max(1000),
 });
 
-type Candidate = {
-  transcriptText: string;
-  startMs: number;
-  endMs: number;
-  ocrText: string[];
-  sceneDescription: string;
+const TOOLS = [
+  {
+    functionDeclarations: [
+      {
+        name: "search_transcript",
+        description:
+          "Search the spoken audio transcript of the video. Use this when the question is about what someone said, spoke, or narrated.",
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            query: {
+              type: Type.STRING,
+              description: "Natural language search query for the transcript",
+            },
+          },
+          required: ["query"],
+        },
+      },
+      {
+        name: "search_ocr",
+        description:
+          "Search text visible on screen — slides, whiteboards, captions, overlays, titles. Use this when the question is about written or displayed text.",
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            query: {
+              type: Type.STRING,
+              description: "Keywords or phrase to search for in on-screen text",
+            },
+          },
+          required: ["query"],
+        },
+      },
+      {
+        name: "search_scene",
+        description:
+          "Search visual scene descriptions — what is happening visually, who is visible, objects, setting, actions. Use this when the question is about visual content.",
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            query: {
+              type: Type.STRING,
+              description: "Natural language description of the visual to search for",
+            },
+          },
+          required: ["query"],
+        },
+      },
+    ],
+  },
+];
+
+type ToolResult = {
+  timestampMs: number;
+  text: string;
+  source: "transcript" | "ocr" | "scene";
 };
+
+async function embedQuery(question: string): Promise<number[]> {
+  const result = await genAI.models.embedContent({
+    model: "gemini-embedding-001",
+    contents: question,
+  });
+  return result.embeddings![0].values!;
+}
+
+async function searchTranscript(query: string, videoId: string): Promise<ToolResult[]> {
+  const vector = await embedQuery(query);
+  const index = pinecone.index(process.env.PINECONE_INDEX_NAME!);
+  const result = await index.query({
+    vector,
+    topK: 3,
+    filter: { video_id: { $eq: videoId } },
+    includeMetadata: true,
+  });
+  return result.matches.map((m) => ({
+    timestampMs: (m.metadata?.start_ms as number) ?? 0,
+    text: (m.metadata?.sentence as string) ?? "",
+    source: "transcript" as const,
+  }));
+}
+
+async function searchOcr(query: string, videoId: string): Promise<ToolResult[]> {
+  const rows = await db
+    .select({ timestampMs: ocrFrames.timestampMs, ocrText: ocrFrames.ocrText })
+    .from(ocrFrames)
+    .where(
+      and(
+        eq(ocrFrames.videoId, videoId),
+        sql`to_tsvector('english', array_to_string(${ocrFrames.ocrText}, ' ')) @@ plainto_tsquery('english', ${query})`
+      )
+    )
+    .limit(5);
+
+  return rows.map((r) => ({
+    timestampMs: r.timestampMs,
+    text: (r.ocrText ?? []).join(" | "),
+    source: "ocr" as const,
+  }));
+}
+
+async function searchScene(query: string, videoId: string): Promise<ToolResult[]> {
+  const vector = await embedQuery(query);
+  const index = pinecone.index(process.env.PINECONE_INDEX_NAME!);
+  const result = await index.query({
+    vector,
+    topK: 3,
+    filter: { video_id: { $eq: videoId } },
+    includeMetadata: true,
+    namespace: "scenes",
+  });
+  return result.matches.map((m) => ({
+    timestampMs: (m.metadata?.start_ms as number) ?? 0,
+    text: (m.metadata?.sentence as string) ?? "",
+    source: "scene" as const,
+  }));
+}
 
 export async function POST(request: Request) {
   const session = await auth.api.getSession({ headers: request.headers });
@@ -67,147 +177,158 @@ export async function POST(request: Request) {
 
   const { videoId, question } = parsed.data;
 
-  // Verify the video belongs to the user and is READY
   const [video] = await db
     .select({ id: videos.id, status: videos.status })
     .from(videos)
     .where(and(eq(videos.id, videoId), eq(videos.userId, session.user.id)));
 
-  if (!video) {
-    return Response.json({ error: "Not found" }, { status: 404 });
-  }
-  if (video.status !== "READY") {
-    return Response.json({ error: "Video not ready" }, { status: 409 });
-  }
+  if (!video) return Response.json({ error: "Not found" }, { status: 404 });
+  if (video.status !== "READY") return Response.json({ error: "Video not ready" }, { status: 409 });
 
-  // Step 1: Embed the query — must match gemini-embedding-001 used by Python server
-  const embeddingResult = await genAI.models.embedContent({
-    model: "gemini-embedding-001",
-    contents: question,
-  });
-  const queryVector = embeddingResult.embeddings![0].values!;
+  const encoder = new TextEncoder();
 
-  // Step 2: Search Pinecone for top 3 transcript chunks
-  const index = pinecone.index(process.env.PINECONE_INDEX_NAME!);
-  const searchResult = await index.query({
-    vector: queryVector,
-    topK: 3,
-    filter: { video_id: { $eq: videoId } },
-    includeMetadata: true,
-  });
-
-  if (searchResult.matches.length === 0) {
-    return Response.json({ error: "No matches found" }, { status: 404 });
-  }
-
-  // Step 3: For each candidate, fetch ASR chunk + OCR + scene from Postgres
-  const candidates: Candidate[] = await Promise.all(
-    searchResult.matches.map(async (match) => {
-      const sentence = (match.metadata?.sentence as string) ?? "";
-      const startMs = (match.metadata?.start_ms as number) ?? 0;
-      const endMs = (match.metadata?.end_ms as number) ?? 0;
-
-      const frameTimestampMs = Math.round(startMs / 1000) * 1000;
-
-      const [ocrRow] = await db
-        .select({ ocrText: ocrFrames.ocrText })
-        .from(ocrFrames)
-        .where(
-          and(
-            eq(ocrFrames.videoId, videoId),
-            eq(ocrFrames.timestampMs, frameTimestampMs)
-          )
-        );
-
-      const [sceneRow] = await db
-        .select({ description: sceneFrames.description })
-        .from(sceneFrames)
-        .where(
-          and(
-            eq(sceneFrames.videoId, videoId),
-            eq(sceneFrames.timestampMs, frameTimestampMs)
-          )
-        );
-
-      return {
-        transcriptText: sentence,
-        startMs,
-        endMs,
-        ocrText: ocrRow?.ocrText ?? [],
-        sceneDescription: sceneRow?.description ?? "",
+  const stream = new ReadableStream({
+    async start(controller) {
+      const emit = (event: object) => {
+        controller.enqueue(encoder.encode(JSON.stringify(event) + "\n"));
       };
-    })
-  );
 
-  // Step 4: Agent reasoning with Gemini 2.5 Flash
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let messages: any[] = [
+          {
+            role: "user",
+            parts: [
+              {
+                text: `You are a video intelligence assistant. Use the available tools to search the video content and answer the user's question. Always search at least one modality before answering. Question: "${question}"`,
+              },
+            ],
+          },
+        ];
 
-  const candidateContext = candidates
-    .map(
-      (c, i) => `Candidate ${i + 1} (${c.startMs}ms – ${c.endMs}ms):
-Transcript: ${c.transcriptText}
-OCR text on screen: ${c.ocrText.length > 0 ? c.ocrText.join(" | ") : "(none)"}
-Visual scene: ${c.sceneDescription || "(none)"}`
-    )
-    .join("\n\n");
+        const allResults: ToolResult[] = [];
+        let iterations = 0;
 
-  const agentPrompt = `You are a video assistant. You have been given extracted data from 3 moments in a video: the spoken transcript, any text visible on screen (OCR), and a description of the visual scene. Use all three sources to answer the user's question directly and concisely.
+        while (iterations < 3) {
+          const response = await genAI.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: messages,
+            config: {
+              tools: TOOLS,
+              thinkingConfig: { thinkingBudget: 0 },
+            },
+          });
 
-Question: "${question}"
+          const candidate = response.candidates?.[0];
+          if (!candidate) break;
 
-Here are 3 candidate moments from the video:
+          const functionCalls = candidate.content?.parts?.filter((p: { functionCall?: unknown }) => p.functionCall) ?? [];
+          if (!candidate.content) break;
 
-${candidateContext}
+          if (functionCalls.length === 0) {
+            // No more tool calls — synthesize final answer
+            const text = response.text?.trim() ?? "";
+            let answerJson: {
+              timestamp_ms: number;
+              explanation: string;
+              strongest_signal: "transcript" | "ocr" | "scene";
+            };
 
-Return ONLY valid JSON with this exact structure:
-{
-  "best_candidate_index": 0,
-  "timestamp_ms": 0,
-  "answer": "a direct 1-2 sentence answer to the user's question based on the transcript, OCR text, and scene description",
-  "strongest_signal": "transcript"
-}
+            try {
+              const cleaned = text.replace(/^```json\n?/, "").replace(/\n?```$/, "");
+              answerJson = JSON.parse(cleaned);
+            } catch {
+              // Gemini returned plain text — wrap it
+              const best = allResults[0];
+              answerJson = {
+                timestamp_ms: best?.timestampMs ?? 0,
+                explanation: text,
+                strongest_signal: best?.source ?? "transcript",
+              };
+            }
 
-Rules:
-- best_candidate_index: 0, 1, or 2 (zero-based)
-- timestamp_ms: the start_ms of the best candidate
-- answer: directly answer the question — do not explain your reasoning, just answer
-- strongest_signal: one of "transcript", "ocr", or "scene"`;
+            // Build candidates from all gathered results
+            const candidates = allResults.slice(0, 5).map((r, i) => ({
+              transcriptText: r.source === "transcript" ? r.text : "",
+              startMs: r.timestampMs,
+              endMs: r.timestampMs,
+              ocrText: r.source === "ocr" ? r.text.split(" | ") : [],
+              sceneDescription: r.source === "scene" ? r.text : "",
+              strongestSignal: r.source,
+              isBest: i === 0,
+            }));
 
-  const agentResult = await genAI.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: agentPrompt,
-    config: { thinkingConfig: { thinkingBudget: 0 } },
+            emit({
+              type: "answer",
+              primaryTimestampMs: answerJson.timestamp_ms ?? allResults[0]?.timestampMs ?? 0,
+              explanation: answerJson.explanation,
+              candidates,
+            });
+            break;
+          }
+
+          // Execute all function calls in this iteration
+          const toolResponseParts = [];
+
+          for (const part of functionCalls) {
+            const call = part.functionCall as { name: string; args: { query: string } };
+            const toolName = call.name;
+            const query = call.args?.query ?? question;
+
+            emit({ type: "tool_call", tool: toolName, query });
+
+            let results: ToolResult[] = [];
+            try {
+              if (toolName === "search_transcript") {
+                results = await searchTranscript(query, videoId);
+              } else if (toolName === "search_ocr") {
+                results = await searchOcr(query, videoId);
+              } else if (toolName === "search_scene") {
+                results = await searchScene(query, videoId);
+              }
+            } catch {
+              results = [];
+            }
+
+            allResults.push(...results);
+
+            const snippet = results[0]?.text?.slice(0, 120) ?? "(no results)";
+            emit({ type: "tool_result", tool: toolName, count: results.length, snippet });
+
+            toolResponseParts.push({
+              functionResponse: {
+                name: toolName,
+                response: {
+                  results: results.map((r) => ({
+                    timestamp_ms: r.timestampMs,
+                    text: r.text,
+                  })),
+                },
+              },
+            });
+          }
+
+          messages = [
+            ...messages,
+            { role: "model", parts: candidate.content?.parts ?? [] },
+            { role: "tool", parts: toolResponseParts },
+          ];
+
+          iterations++;
+        }
+      } catch (err) {
+        emit({ type: "error", message: err instanceof Error ? err.message : "Unknown error" });
+      } finally {
+        controller.close();
+      }
+    },
   });
-  const agentText = agentResult.text!.trim();
 
-  let agentJson: {
-    best_candidate_index: number;
-    timestamp_ms: number;
-    answer: string;
-    strongest_signal: "transcript" | "ocr" | "scene";
-  };
-
-  try {
-    const cleaned = agentText.replace(/^```json\n?/, "").replace(/\n?```$/, "");
-    agentJson = JSON.parse(cleaned);
-  } catch {
-    return Response.json({ error: "Agent response parse failed" }, { status: 500 });
-  }
-
-  // Step 5: Build response
-  const bestIdx = Math.max(0, Math.min(2, agentJson.best_candidate_index));
-
-  return Response.json({
-    primaryTimestampMs: agentJson.timestamp_ms ?? candidates[bestIdx].startMs,
-    explanation: agentJson.answer,
-    candidates: candidates.map((c, i) => ({
-      transcriptText: c.transcriptText,
-      startMs: c.startMs,
-      endMs: c.endMs,
-      ocrText: c.ocrText,
-      sceneDescription: c.sceneDescription,
-      strongestSignal:
-        i === bestIdx ? agentJson.strongest_signal : "transcript",
-      isBest: i === bestIdx,
-    })),
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "application/x-ndjson",
+      "Transfer-Encoding": "chunked",
+      "Cache-Control": "no-cache",
+    },
   });
 }

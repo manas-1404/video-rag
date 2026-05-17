@@ -4,6 +4,7 @@ import { useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import VideoPlayer from "./video-player";
 import ReferenceCards from "./reference-cards";
+import AgentTrace, { type AgentStep } from "./agent-trace";
 
 type Candidate = {
   transcriptText: string;
@@ -23,7 +24,7 @@ type QueryResult = {
 
 type Message =
   | { role: "user"; content: string }
-  | { role: "assistant"; content: string; result: QueryResult };
+  | { role: "assistant"; content: string; result: QueryResult; steps: AgentStep[] };
 
 type Props = {
   videoId: string;
@@ -31,10 +32,52 @@ type Props = {
   title: string;
 };
 
+const TOOL_META: Record<string, { icon: string; label: string }> = {
+  search_transcript: { icon: "🎙️", label: "Searching transcript" },
+  search_ocr: { icon: "📄", label: "Searching on-screen text" },
+  search_scene: { icon: "🎬", label: "Searching visual scene" },
+};
+
+function LiveSteps({ steps }: { steps: AgentStep[] }) {
+  if (steps.length === 0) {
+    return (
+      <div className="flex items-center gap-2 text-xs text-zinc-500">
+        <span className="inline-block w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
+        Thinking…
+      </div>
+    );
+  }
+
+  const last = steps[steps.length - 1];
+
+  if (last.type === "tool_call") {
+    const meta = TOOL_META[last.tool] ?? { icon: "🔍", label: "Searching" };
+    return (
+      <div className="flex items-center gap-2 text-xs text-zinc-400 animate-pulse">
+        <span>{meta.icon}</span>
+        <span>{meta.label} for <span className="text-violet-400 italic">"{last.query}"</span>…</span>
+      </div>
+    );
+  }
+
+  // tool_result — show what was just found
+  const meta = TOOL_META[last.tool] ?? { icon: "🔍", label: last.tool };
+  return (
+    <div className="flex items-center gap-2 text-xs text-zinc-400">
+      <span className="text-emerald-500">✓</span>
+      <span>{meta.icon} Found {last.count} result{last.count !== 1 ? "s" : ""}</span>
+      {last.count > 0 && (
+        <span className="text-zinc-600 italic truncate max-w-[200px]">— "{last.snippet}"</span>
+      )}
+    </div>
+  );
+}
+
 export default function QueryInterface({ videoId, videoUrl, title }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
+  const [liveSteps, setLiveSteps] = useState<AgentStep[]>([]);
   const [seekTo, setSeekTo] = useState<number | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -50,6 +93,7 @@ export default function QueryInterface({ videoId, videoUrl, title }: Props) {
     setMessages((prev) => [...prev, { role: "user", content: q }]);
     setQuestion("");
     setLoading(true);
+    setLiveSteps([]);
 
     try {
       const res = await fetch("/api/query", {
@@ -58,27 +102,90 @@ export default function QueryInterface({ videoId, videoUrl, title }: Props) {
         body: JSON.stringify({ videoId, question: q }),
       });
 
-      if (!res.ok) {
-        const err = await res.json();
+      if (!res.ok || !res.body) {
+        const err = await res.json().catch(() => ({ error: "Query failed. Please try again." }));
         setMessages((prev) => [
           ...prev,
           {
             role: "assistant",
             content: err.error ?? "Query failed. Please try again.",
             result: { primaryTimestampMs: 0, explanation: "", candidates: [] },
+            steps: [],
           },
         ]);
         return;
       }
 
-      const result: QueryResult = await res.json();
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let capturedSteps: AgentStep[] = [];
 
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: result.explanation, result },
-      ]);
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-      setSeekTo(result.primaryTimestampMs);
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop()!;
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          let event: { type: string; [key: string]: unknown };
+          try {
+            event = JSON.parse(line);
+          } catch {
+            continue;
+          }
+
+          if (event.type === "tool_call") {
+            const step: AgentStep = {
+              type: "tool_call",
+              tool: event.tool as string,
+              query: event.query as string,
+            };
+            capturedSteps = [...capturedSteps, step];
+            setLiveSteps([...capturedSteps]);
+          } else if (event.type === "tool_result") {
+            const step: AgentStep = {
+              type: "tool_result",
+              tool: event.tool as string,
+              count: event.count as number,
+              snippet: event.snippet as string,
+            };
+            capturedSteps = [...capturedSteps, step];
+            setLiveSteps([...capturedSteps]);
+          } else if (event.type === "answer") {
+            const result = event as unknown as QueryResult & { type: string };
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: "assistant",
+                content: result.explanation,
+                result: {
+                  primaryTimestampMs: result.primaryTimestampMs,
+                  explanation: result.explanation,
+                  candidates: result.candidates,
+                },
+                steps: capturedSteps,
+              },
+            ]);
+            setLiveSteps([]);
+            setSeekTo(result.primaryTimestampMs);
+          } else if (event.type === "error") {
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: "assistant",
+                content: (event.message as string) ?? "Something went wrong.",
+                result: { primaryTimestampMs: 0, explanation: "", candidates: [] },
+                steps: capturedSteps,
+              },
+            ]);
+            setLiveSteps([]);
+          }
+        }
+      }
     } catch {
       setMessages((prev) => [
         ...prev,
@@ -86,10 +193,12 @@ export default function QueryInterface({ videoId, videoUrl, title }: Props) {
           role: "assistant",
           content: "Something went wrong. Please try again.",
           result: { primaryTimestampMs: 0, explanation: "", candidates: [] },
+          steps: [],
         },
       ]);
     } finally {
       setLoading(false);
+      setLiveSteps([]);
       inputRef.current?.focus();
     }
   }
@@ -103,7 +212,6 @@ export default function QueryInterface({ videoId, videoUrl, title }: Props) {
 
   return (
     <div className="flex flex-col h-screen">
-      {/* Header */}
       <header className="flex items-center gap-3 px-6 py-3 border-b border-zinc-800 shrink-0">
         <Link href="/videos" className="text-zinc-500 hover:text-zinc-300 transition-colors text-sm">
           ←
@@ -139,12 +247,11 @@ export default function QueryInterface({ videoId, videoUrl, title }: Props) {
         {/* Right: chat */}
         <div className="flex-1 flex flex-col">
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-            {messages.length === 0 && (
+            {messages.length === 0 && !loading && (
               <div className="h-full flex items-center justify-center">
                 <p className="text-zinc-600 text-sm text-center max-w-xs">
-                  Ask a question about the video. The system will search across
-                  speech, on-screen text, and visual context to find the best
-                  answer.
+                  Ask a question about the video. The agent will search across
+                  speech, on-screen text, and visual context to find the best answer.
                 </p>
               </div>
             )}
@@ -156,10 +263,8 @@ export default function QueryInterface({ videoId, videoUrl, title }: Props) {
                     {msg.content}
                   </div>
                 ) : (
-                  <div className="space-y-2">
-                    <p className="text-zinc-200 text-sm leading-relaxed">
-                      {msg.content}
-                    </p>
+                  <div className="space-y-1">
+                    <p className="text-zinc-200 text-sm leading-relaxed">{msg.content}</p>
                     {msg.result.primaryTimestampMs > 0 && (
                       <button
                         onClick={() => handleSeek(msg.result.primaryTimestampMs)}
@@ -168,16 +273,15 @@ export default function QueryInterface({ videoId, videoUrl, title }: Props) {
                         Jump to {formatMs(msg.result.primaryTimestampMs)}
                       </button>
                     )}
+                    <AgentTrace steps={msg.steps} />
                   </div>
                 )}
               </div>
             ))}
 
             {loading && (
-              <div className="flex gap-1 items-center">
-                <div className="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce [animation-delay:0ms]" />
-                <div className="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce [animation-delay:150ms]" />
-                <div className="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce [animation-delay:300ms]" />
+              <div className="py-1">
+                <LiveSteps steps={liveSteps} />
               </div>
             )}
           </div>
