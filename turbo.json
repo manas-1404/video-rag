@@ -1,5 +1,29 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalEnv": [
+    "DATABASE_URL",
+    "BETTER_AUTH_SECRET",
+    "BETTER_AUTH_URL",
+    "NEXT_PUBLIC_APP_URL",
+    "BLOB_READ_WRITE_TOKEN",
+    "INNGEST_EVENT_KEY",
+    "INNGEST_SIGNING_KEY",
+    "GEMINI_API_KEY",
+    "PINECONE_API_KEY",
+    "PINECONE_INDEX_NAME",
+    "PYTHON_SERVER_URL",
+    "BUCKET_ENDPOINT_URL",
+    "BUCKET_REGION",
+    "BUCKET_NAME",
+    "BUCKET_ACCESS_KEY_ID",
+    "BUCKET_SECRET_ACCESS_KEY",
+    "GCP_PROJECT_ID",
+    "GCP_PROJECT_NUMBER",
+    "GCP_SERVICE_ACCOUNT_EMAIL",
+    "GCP_WORKLOAD_IDENTITY_POOL_ID",
+    "GCP_WORKLOAD_IDENTITY_POOL_PROVIDER_ID",
+    "GOOGLE_CLOUD_LOCATION"
+  ],
   "tasks": {
     "build": {
       "outputs": [".next/**", "!.next/cache/**"]

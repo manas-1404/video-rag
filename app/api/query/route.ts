@@ -174,7 +174,7 @@ Rules:
 - strongest_signal: one of "transcript", "ocr", or "scene"`;
 
   const agentResult = await genAI.models.generateContent({
-    model: "gemini-2.0-flash",
+    model: "gemini-2.5-flash",
     contents: agentPrompt,
   });
   const agentText = agentResult.text!.trim();
