@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import Link from "next/link";
 import VideoPlayer from "./video-player";
 import ReferenceCards from "./reference-cards";
 
@@ -104,8 +105,9 @@ export default function QueryInterface({ videoId, videoUrl, title }: Props) {
     <div className="flex flex-col h-screen">
       {/* Header */}
       <header className="flex items-center gap-3 px-6 py-3 border-b border-zinc-800 shrink-0">
-        <span className="text-sm font-medium text-zinc-400">VideoRAG</span>
-        <span className="text-zinc-700">/</span>
+        <Link href="/videos" className="text-zinc-500 hover:text-zinc-300 transition-colors text-sm">
+          ←
+        </Link>
         <span className="text-sm text-zinc-200 truncate max-w-xs">{title}</span>
       </header>
 
