@@ -10,6 +10,7 @@ per frame for OCR + scene description, writes to Postgres.
 import os
 import tempfile
 import inngest
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from lib import db, storage
 from lib.inngest_client import client
 from lib.gemini_client import analyze_frame
@@ -43,17 +44,14 @@ async def process_visual(ctx: inngest.Context) -> None:
 
 
 def _process_batch(video_id: str, frame_urls: list[str], batch_idx: int):
-    for i, url in enumerate(frame_urls):
-        # Frame index determines timestamp: frames are 1 frame/sec, 1-indexed
+    def process_frame(i: int, url: str):
         frame_number = batch_idx * BATCH_SIZE + i + 1
         timestamp_ms = (frame_number - 1) * 1000
-
         local_path = storage.download_to_temp(url, ".jpg")
         try:
             result = analyze_frame(local_path)
             ocr_text: list[str] = result.get("ocr_text", [])
             scene_description: str = result.get("scene_description", "")
-
             if ocr_text:
                 db.insert_ocr_frame(video_id, timestamp_ms, ocr_text)
             if scene_description:
@@ -61,3 +59,8 @@ def _process_batch(video_id: str, frame_urls: list[str], batch_idx: int):
         finally:
             if os.path.exists(local_path):
                 os.remove(local_path)
+
+    with ThreadPoolExecutor(max_workers=BATCH_SIZE) as executor:
+        futures = [executor.submit(process_frame, i, url) for i, url in enumerate(frame_urls)]
+        for future in as_completed(futures):
+            future.result()

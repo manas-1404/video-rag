@@ -1,6 +1,12 @@
 import os
 import sys
 from dotenv import load_dotenv
+import boto3
+import inngest.fast_api
+from fastapi import FastAPI
+from lib.inngest_client import client
+from functions import extract_frames_and_audio, process_asr, process_visual, mark_ready
+from lib.gemini_client import _client
 
 load_dotenv()
 
@@ -19,11 +25,9 @@ for var in required:
     val = os.environ.get(var)
     print(f"[startup] {var}: {'SET' if val else 'MISSING'}", file=sys.stderr)
 
-import boto3
-import inngest.fast_api
-from fastapi import FastAPI
-from lib.inngest_client import client
-from functions import extract_frames_and_audio, process_asr, process_visual, mark_ready
+response = _client.models.generate_content(model="gemini-2.5-flash", contents="tell me a short story in 2 line")
+print(response)
+print(f"[startup] Gemini API check: — {response.text.strip()}", file=sys.stderr)
 
 def _configure_bucket_cors():
     s3 = boto3.client(
@@ -48,12 +52,6 @@ def _configure_bucket_cors():
         },
     )
     print("[startup] Bucket CORS configured", file=sys.stderr)
-
-from lib.gemini_client import _client
-response = _client.models.generate_content(model="gemini-2.5-flash", contents="tell me a short story in 2 line")
-print(response)
-print(f"[startup] Gemini API check: — {response.text.strip()}", file=sys.stderr)
-
 
 try:
     _configure_bucket_cors()
