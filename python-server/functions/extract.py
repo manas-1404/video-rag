@@ -92,8 +92,7 @@ def _run_ffmpeg(video_path: str) -> tuple[str, list[str]]:
 def _upload_frames(video_id: str, frame_paths: list[str]) -> list[str]:
     urls = []
     for i, path in enumerate(frame_paths):
-        timestamp_sec = i + 1
-        url = storage.upload_file(path, f"videos/{video_id}/frames/{timestamp_sec:04d}.jpg")
+        url = storage.upload_file(path, f"videos/{video_id}/frames/{i:04d}.jpg")
         urls.append(url)
     return urls
 

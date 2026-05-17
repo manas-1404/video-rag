@@ -3,8 +3,8 @@ Inngest function: process-asr
 Trigger: extraction/complete
 Emits:  asr/complete
 
-Groups Whisper words into sentence chunks, builds sliding-window context
-embeddings, writes to Postgres + Pinecone.
+Groups Whisper words into ~25s chunks with 6s overlap, using pause gaps
+as natural split boundaries. Writes to Postgres + Pinecone.
 """
 
 import os
@@ -19,7 +19,8 @@ from lib.pinecone_client import upsert_vector
 _model: WhisperModel | None = None
 
 PAUSE_GAP_SEC = 0.4
-CONTEXT_WINDOW_SEC = 3.0
+TARGET_CHUNK_SEC = 25.0
+OVERLAP_SEC = 6.0
 
 
 def _get_model() -> WhisperModel:
@@ -50,7 +51,7 @@ async def process_asr(ctx: inngest.Context) -> None:
 
     await ctx.step.run(
         "embed-and-store-chunks",
-        lambda: _embed_and_store(video_id, chunks, words),
+        lambda: _embed_and_store(video_id, chunks),
     )
 
     await ctx.step.send_event(
@@ -73,23 +74,59 @@ def _transcribe(audio_path: str) -> list[dict]:
 
 
 def _group_into_chunks(words: list[dict]) -> list[dict]:
-    """Group words into sentence chunks by detecting pause gaps."""
+    """
+    Accumulate words into ~25s chunks, snapping splits to natural pause gaps.
+    Each successive chunk starts OVERLAP_SEC before the previous one ended.
+    """
     if not words:
         return []
 
     chunks = []
-    current: list[dict] = [words[0]]
+    i = 0
 
-    for w in words[1:]:
-        gap = w["start"] - current[-1]["end"]
-        if gap >= PAUSE_GAP_SEC:
-            chunks.append(_make_chunk(current))
-            current = [w]
-        else:
-            current.append(w)
+    while i < len(words):
+        chunk_start_time = words[i]["start"]
+        target_end_time = chunk_start_time + TARGET_CHUNK_SEC
 
-    if current:
-        chunks.append(_make_chunk(current))
+        # Find the last word index that starts before the target end
+        j = i
+        while j + 1 < len(words) and words[j + 1]["start"] < target_end_time:
+            j += 1
+
+        # Snap forward (up to 3s) to the next natural pause so we don't cut mid-sentence
+        snap_limit = words[j]["end"] + 3.0
+        k = j
+        while k + 1 < len(words) and words[k + 1]["start"] <= snap_limit:
+            if words[k + 1]["start"] - words[k]["end"] >= PAUSE_GAP_SEC:
+                j = k
+                break
+            k += 1
+
+        chunks.append(_make_chunk(words[i: j + 1]))
+
+        if j + 1 >= len(words):
+            break
+
+        # If remaining new content is shorter than the overlap window, skip overlap
+        # so the tail chunk contains only new content (not diluted by the previous chunk).
+        remaining_duration = words[-1]["end"] - words[j + 1]["start"]
+        if remaining_duration < OVERLAP_SEC:
+            i = j + 1
+            continue
+
+        # Next chunk starts OVERLAP_SEC before this chunk ended
+        overlap_start_time = words[j]["end"] - OVERLAP_SEC
+        next_i = j + 1
+        for idx in range(i, j + 1):
+            if words[idx]["start"] >= overlap_start_time:
+                next_i = idx
+                break
+
+        # Always advance to avoid an infinite loop on very short audio
+        if next_i <= i:
+            next_i = j + 1
+
+        i = next_i
 
     return chunks
 
@@ -107,24 +144,9 @@ def _make_chunk(words: list[dict]) -> dict:
     }
 
 
-def _build_context_string(chunk: dict, all_words: list[dict]) -> str:
-    """Sliding window: grab words ±3s around this chunk's center."""
-    center_sec = (chunk["start_ms"] + chunk["end_ms"]) / 2 / 1000
-    lo = center_sec - CONTEXT_WINDOW_SEC
-    hi = center_sec + CONTEXT_WINDOW_SEC
-
-    context_words = [
-        w["word"].strip()
-        for w in all_words
-        if w["start"] >= lo and w["end"] <= hi
-    ]
-    return " ".join(context_words).strip() or chunk["text"]
-
-
-def _embed_and_store(video_id: str, chunks: list[dict], all_words: list[dict]):
+def _embed_and_store(video_id: str, chunks: list[dict]):
     for chunk in chunks:
-        context_str = _build_context_string(chunk, all_words)
-        embedding = embed_text(context_str)
+        embedding = embed_text(chunk["text"])
 
         vector_id = str(uuid.uuid4())
 
