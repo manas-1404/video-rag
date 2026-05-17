@@ -176,6 +176,7 @@ Rules:
   const agentResult = await genAI.models.generateContent({
     model: "gemini-2.5-flash",
     contents: agentPrompt,
+    config: { thinkingConfig: { thinkingBudget: 0 } },
   });
   const agentText = agentResult.text!.trim();
 

@@ -74,7 +74,7 @@ export default function QueryInterface({ videoId, videoUrl, title }: Props) {
 
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: result.explanation, result },
+        { role: "assistant", content: `Found the best moment at ${formatMs(result.primaryTimestampMs)}.`, result },
       ]);
 
       setSeekTo(result.primaryTimestampMs);
