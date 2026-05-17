@@ -2,12 +2,15 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { videos, asrChunks, ocrFrames, sceneFrames } from "@/lib/db/schema";
 import { eq, and, sql } from "drizzle-orm";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import { Pinecone } from "@pinecone-database/pinecone";
 import { z } from "zod";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-const pinecone = new Pinecone({ apiKey: process.env.PINECONE_API_KEY! });
+if (!process.env.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not set");
+if (!process.env.PINECONE_API_KEY) throw new Error("PINECONE_API_KEY is not set");
+
+const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const pinecone = new Pinecone({ apiKey: process.env.PINECONE_API_KEY });
 
 const bodySchema = z.object({
   videoId: z.string().uuid(),
@@ -49,12 +52,12 @@ export async function POST(request: Request) {
     return Response.json({ error: "Video not ready" }, { status: 409 });
   }
 
-  // Step 1: Embed the query
-  const embeddingModel = genAI.getGenerativeModel({
-    model: "text-embedding-004",
+  // Step 1: Embed the query — must match gemini-embedding-001 used by Python server
+  const embeddingResult = await genAI.models.embedContent({
+    model: "gemini-embedding-001",
+    contents: question,
   });
-  const embeddingResult = await embeddingModel.embedContent(question);
-  const queryVector = embeddingResult.embedding.values;
+  const queryVector = embeddingResult.embeddings![0].values!;
 
   // Step 2: Search Pinecone for top 3 transcript chunks
   const index = pinecone.index(process.env.PINECONE_INDEX_NAME!);
@@ -109,7 +112,6 @@ export async function POST(request: Request) {
   );
 
   // Step 4: Agent reasoning with Gemini 2.0 Flash
-  const agentModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
   const candidateContext = candidates
     .map(
@@ -143,8 +145,11 @@ Rules:
 - timestamp_ms: the start_ms of the best candidate
 - strongest_signal: one of "transcript", "ocr", or "scene"`;
 
-  const agentResult = await agentModel.generateContent(agentPrompt);
-  const agentText = agentResult.response.text().trim();
+  const agentResult = await genAI.models.generateContent({
+    model: "gemini-2.0-flash",
+    contents: agentPrompt,
+  });
+  const agentText = agentResult.text!.trim();
 
   let agentJson: {
     best_candidate_index: number;
