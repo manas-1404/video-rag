@@ -26,7 +26,16 @@
   ],
   "tasks": {
     "build": {
-      "outputs": [".next/**", "!.next/cache/**"]
+      "outputs": [
+        ".next/static/**",
+        ".next/server/**",
+        ".next/BUILD_ID",
+        ".next/build-manifest.json",
+        ".next/prerender-manifest.json",
+        ".next/routes-manifest.json",
+        ".next/app-build-manifest.json",
+        ".next/app-path-routes-manifest.json"
+      ]
     },
     "lint": {},
     "dev": {

@@ -139,7 +139,7 @@ export async function POST(request: Request) {
     })
   );
 
-  // Step 4: Agent reasoning with Gemini 2.0 Flash
+  // Step 4: Agent reasoning with Gemini 2.5 Flash
 
   const candidateContext = candidates
     .map(
@@ -150,7 +150,7 @@ Visual scene: ${c.sceneDescription || "(none)"}`
     )
     .join("\n\n");
 
-  const agentPrompt = `You are analyzing a video to answer the user's question.
+  const agentPrompt = `You are a video assistant. You have been given extracted data from 3 moments in a video: the spoken transcript, any text visible on screen (OCR), and a description of the visual scene. Use all three sources to answer the user's question directly and concisely.
 
 Question: "${question}"
 
@@ -158,19 +158,18 @@ Here are 3 candidate moments from the video:
 
 ${candidateContext}
 
-Based on all three knowledge sources (transcript, on-screen text, visual scene), identify which candidate best answers the question.
-
 Return ONLY valid JSON with this exact structure:
 {
   "best_candidate_index": 0,
   "timestamp_ms": 0,
-  "explanation": "why this moment best answers the question",
+  "answer": "a direct 1-2 sentence answer to the user's question based on the transcript, OCR text, and scene description",
   "strongest_signal": "transcript"
 }
 
 Rules:
 - best_candidate_index: 0, 1, or 2 (zero-based)
 - timestamp_ms: the start_ms of the best candidate
+- answer: directly answer the question — do not explain your reasoning, just answer
 - strongest_signal: one of "transcript", "ocr", or "scene"`;
 
   const agentResult = await genAI.models.generateContent({
@@ -183,7 +182,7 @@ Rules:
   let agentJson: {
     best_candidate_index: number;
     timestamp_ms: number;
-    explanation: string;
+    answer: string;
     strongest_signal: "transcript" | "ocr" | "scene";
   };
 
@@ -199,7 +198,7 @@ Rules:
 
   return Response.json({
     primaryTimestampMs: agentJson.timestamp_ms ?? candidates[bestIdx].startMs,
-    explanation: agentJson.explanation,
+    explanation: agentJson.answer,
     candidates: candidates.map((c, i) => ({
       transcriptText: c.transcriptText,
       startMs: c.startMs,
