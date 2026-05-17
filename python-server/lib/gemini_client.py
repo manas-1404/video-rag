@@ -2,8 +2,14 @@ import os
 import json
 from google import genai
 from google.genai import types
+from pydantic import BaseModel
 
 _client = genai.Client(vertexai=True, api_key=os.environ["GEMINI_API_KEY"])
+
+
+class FrameAnalysis(BaseModel):
+    ocr_text: list[str]
+    scene_description: str
 
 FRAME_ANALYSIS_PROMPT = """Analyze this video frame carefully.
 
@@ -31,14 +37,13 @@ def analyze_frame(image_path: str) -> dict:
             types.Part.from_bytes(data=image_bytes, mime_type=mime),
             FRAME_ANALYSIS_PROMPT,
         ],
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=FrameAnalysis,
+        ),
     )
 
-    text = response.text.strip()
-    if text.startswith("```"):
-        text = text.split("```")[1]
-        if text.startswith("json"):
-            text = text[4:]
-    return json.loads(text.strip())
+    return json.loads(response.text)
 
 
 def embed_text(text: str) -> list[float]:
