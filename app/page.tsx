@@ -12,7 +12,7 @@ export default async function Home() {
     <main className="flex-1 flex flex-col overflow-x-hidden">
 
       {/* ── HERO ─────────────────────────────────────────────── */}
-      <section className="relative flex flex-col items-center justify-center px-6 pt-28 pb-24 text-center">
+      <section className="relative flex flex-col items-center justify-center px-6 pt-16 pb-12 text-center">
         {/* Grid overlay */}
         <div className="absolute inset-0 pointer-events-none" style={{
           backgroundImage: `linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
@@ -21,7 +21,7 @@ export default async function Home() {
         }} />
 
         {/* Brand */}
-        <div className="fade-up fade-up-1 flex items-center gap-3 mb-10">
+        <div className="fade-up fade-up-1 flex items-center gap-3 mb-6">
           <MeridianMark size={44} />
           <span className="text-3xl font-bold tracking-tight gradient-text">Meridian</span>
         </div>
@@ -40,7 +40,7 @@ export default async function Home() {
         </p>
 
         {/* CTAs */}
-        <div className="fade-up fade-up-4 flex items-center gap-3 mb-20">
+        <div className="fade-up fade-up-4 flex items-center gap-3 mb-10">
           <Link href="/register" className="btn-primary text-base px-7 py-3">
             Get started free
           </Link>
@@ -117,10 +117,10 @@ export default async function Home() {
       </section>
 
       {/* ── THREE CHANNELS ───────────────────────────────────── */}
-      <section className="px-6 py-20">
+      <section className="px-6 py-10">
         <div className="max-w-4xl mx-auto">
           <p className="text-xs font-bold uppercase tracking-widest text-slate-600 text-center mb-3">How Meridian sees your video</p>
-          <p className="text-2xl font-semibold text-slate-100 text-center mb-12">Three layers. One answer.</p>
+          <p className="text-2xl font-semibold text-slate-100 text-center mb-8">Three layers. One answer.</p>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             {[
@@ -171,10 +171,10 @@ export default async function Home() {
       </section>
 
       {/* ── HOW IT WORKS ─────────────────────────────────────── */}
-      <section className="px-6 py-20">
+      <section className="px-6 py-10">
         <div className="max-w-2xl mx-auto">
           <p className="text-xs font-bold uppercase tracking-widest text-slate-600 text-center mb-3">Simple by design</p>
-          <p className="text-2xl font-semibold text-slate-100 text-center mb-14">Up and running in minutes</p>
+          <p className="text-2xl font-semibold text-slate-100 text-center mb-8">Up and running in minutes</p>
 
           <div className="space-y-3">
             {[
@@ -216,7 +216,7 @@ export default async function Home() {
       </section>
 
       {/* ── BOTTOM CTA ───────────────────────────────────────── */}
-      <section className="px-6 py-24 text-center">
+      <section className="px-6 py-12 text-center">
         <div className="max-w-lg mx-auto">
           <p className="text-3xl font-bold text-slate-100 mb-4">
             Stop scrubbing.<br />
