@@ -88,6 +88,38 @@ def insert_scene_frame(video_id: str, timestamp_ms: int, description: str):
             )
 
 
+def insert_ocr_frames_batch(video_id: str, frames: list[tuple[int, list[str]]]):
+    if not frames:
+        return
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            psycopg2.extras.execute_values(
+                cur,
+                """
+                INSERT INTO ocr_frames (video_id, timestamp_ms, ocr_text)
+                VALUES %s
+                ON CONFLICT DO NOTHING
+                """,
+                [(video_id, ts, psycopg2.extras.Json(ocr)) for ts, ocr in frames],
+            )
+
+
+def insert_scene_frames_batch(video_id: str, frames: list[tuple[int, str]]):
+    if not frames:
+        return
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            psycopg2.extras.execute_values(
+                cur,
+                """
+                INSERT INTO scene_frames (video_id, timestamp_ms, description)
+                VALUES %s
+                ON CONFLICT DO NOTHING
+                """,
+                [(video_id, ts, desc) for ts, desc in frames],
+            )
+
+
 def update_video_audio_url(video_id: str, audio_url: str):
     with get_conn() as conn:
         with conn.cursor() as cur:

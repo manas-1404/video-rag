@@ -119,6 +119,7 @@ async function searchTranscript(query: string, videoId: string): Promise<ToolRes
     topK: 3,
     filter: { video_id: { $eq: videoId } },
     includeMetadata: true,
+    namespace: "transcripts",
   });
   return result.matches.map((m) => ({
     timestampMs: (m.metadata?.start_ms as number) ?? 0,

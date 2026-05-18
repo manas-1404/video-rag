@@ -40,6 +40,7 @@ def analyze_frame(image_path: str) -> dict:
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
             response_schema=FrameAnalysis,
+            temperature=0,
         ),
     )
 

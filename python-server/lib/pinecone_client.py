@@ -38,6 +38,7 @@ def upsert_vector(
     sentence: str,
     start_ms: int,
     end_ms: int,
+    namespace: str = "",
 ):
     index = get_index()
     index.upsert(
@@ -52,5 +53,6 @@ def upsert_vector(
                     "end_ms": end_ms,
                 },
             }
-        ]
+        ],
+        namespace=namespace,
     )
