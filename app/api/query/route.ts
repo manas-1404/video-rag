@@ -226,7 +226,7 @@ Question: "${question}"`,
             contents: messages,
             config: {
               tools: TOOLS,
-              thinkingConfig: { thinkingBudget: 0 },
+              thinkingConfig: { thinkingBudget: 512 },
             },
           });
 
@@ -260,7 +260,7 @@ RULES:
               ? await genAI.models.generateContent({
                   model: "gemini-2.5-pro",
                   contents: synthesisMessages,
-                  config: { thinkingConfig: { thinkingBudget: 0 } },
+                  config: { thinkingConfig: { thinkingBudget: 1024 } },
                 })
               : response;
 
