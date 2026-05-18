@@ -201,7 +201,14 @@ export async function POST(request: Request) {
             role: "user",
             parts: [
               {
-                text: `You are a video intelligence assistant. Use the available tools to search the video content and answer the user's question. Always search at least one modality before answering. Question: "${question}"`,
+                text: `You are a video intelligence assistant with access to search tools for a video's transcript, on-screen text, and visual scenes. Use the tools to find relevant moments, then answer the question.
+
+STRICT RULES:
+- Never invent, approximate, or guess timestamps. Only use exact timestamp_ms values returned by the tools.
+- Never reference a time (e.g. "0:01:19") unless that exact value came from a tool result.
+- Base your answer only on what the tools returned. Do not use prior knowledge.
+
+Question: "${question}"`,
               },
             ],
           },
@@ -228,7 +235,31 @@ export async function POST(request: Request) {
 
           if (functionCalls.length === 0) {
             // No more tool calls — synthesize final answer
-            const text = response.text?.trim() ?? "";
+            // Re-ask with strict grounding instructions if we have results
+            const synthesisMessages = allResults.length > 0 ? [
+              ...messages,
+              {
+                role: "user",
+                parts: [{
+                  text: `Based only on the tool results above, answer the question.
+
+RULES:
+- Use ONLY the exact timestamp_ms values from the tool results. Do not write any timestamps in your explanation text.
+- Answer directly and concisely in 1-3 sentences.
+- Return ONLY valid JSON: {"timestamp_ms": <exact value from tool results>, "explanation": "<answer with no timestamps mentioned>", "strongest_signal": "<transcript|ocr|scene>"}`,
+                }],
+              },
+            ] : messages;
+
+            const synthesisResponse = allResults.length > 0
+              ? await genAI.models.generateContent({
+                  model: "gemini-2.5-flash",
+                  contents: synthesisMessages,
+                  config: { thinkingConfig: { thinkingBudget: 0 } },
+                })
+              : response;
+
+            const text = synthesisResponse.text?.trim() ?? "";
             let answerJson: {
               timestamp_ms: number;
               explanation: string;
