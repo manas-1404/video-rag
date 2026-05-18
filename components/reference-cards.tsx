@@ -1,5 +1,23 @@
 "use client";
 
+import { useState } from "react";
+
+function ExpandableText({ text, limit = 120 }: { text: string; limit?: number }) {
+  const [expanded, setExpanded] = useState(false);
+  if (text.length <= limit) return <span>{text}</span>;
+  return (
+    <span>
+      {expanded ? text : text.slice(0, limit) + "…"}
+      <button
+        onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}
+        className="ml-1 text-zinc-500 hover:text-zinc-300 underline transition-colors"
+      >
+        {expanded ? "less" : "more"}
+      </button>
+    </span>
+  );
+}
+
 type Candidate = {
   transcriptText: string;
   startMs: number;
@@ -78,7 +96,9 @@ export default function ReferenceCards({ candidates, onSeek }: Props) {
             )}
 
             {c.sceneDescription && (
-              <p className="text-xs text-zinc-600 italic">{c.sceneDescription}</p>
+              <p className="text-xs text-zinc-600 italic">
+                <ExpandableText text={c.sceneDescription} />
+              </p>
             )}
           </div>
         ))}
