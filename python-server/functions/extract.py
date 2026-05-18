@@ -112,7 +112,8 @@ def _dedup_and_upload_frames(video_id: str, frame_paths: list[str]) -> list[dict
 
     for i, path in enumerate(frame_paths):
         timestamp_ms = i * 1000
-        h = imagehash.phash(Image.open(path))
+        with Image.open(path) as img:
+            h = imagehash.phash(img)
 
         matched = None
         for existing_hash, entry in seen:
@@ -127,6 +128,7 @@ def _dedup_and_upload_frames(video_id: str, frame_paths: list[str]) -> list[dict
             url = storage.upload_file(path, f"videos/{video_id}/frames/{i:04d}.jpg")
             entry = {"url": url, "timestamps_ms": [timestamp_ms]}
             seen.append((h, entry))
+            os.remove(path)  # free disk/mem after upload
 
     unique_frames = [entry for _, entry in seen]
     skipped = len(frame_paths) - len(unique_frames)

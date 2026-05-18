@@ -26,7 +26,7 @@ for var in required:
     print(f"[startup] {var}: {'SET' if val else 'MISSING'}", file=sys.stderr)
     print(f"[startup] hahahahahhahahahhahahahahhahahahhahaaa------24-4-2-4-2-4-2----")
 
-response = _client.models.generate_content(model="gemini-2.5-flash", contents="tell me a short story in 2 line")
+response = _client.models.generate_content(model="gemini-3-flash-preview", contents="tell me a short story in 2 line")
 print(response)
 print(f"[startup] Gemini API check: — {response.text.strip()}", file=sys.stderr)
 

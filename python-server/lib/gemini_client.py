@@ -1,5 +1,4 @@
 import os
-import json
 from google import genai
 from google.genai import types
 from pydantic import BaseModel
@@ -32,7 +31,7 @@ def analyze_frame(image_path: str) -> dict:
     mime = "image/jpeg" if ext in (".jpg", ".jpeg") else "image/png"
 
     response = _client.models.generate_content(
-        model="gemini-2.5-flash",
+        model="gemini-3-flash-preview",
         contents=[
             types.Part.from_bytes(data=image_bytes, mime_type=mime),
             FRAME_ANALYSIS_PROMPT,
@@ -44,7 +43,10 @@ def analyze_frame(image_path: str) -> dict:
         ),
     )
 
-    return json.loads(response.text)
+    parsed: FrameAnalysis | None = response.parsed
+    if parsed is None:
+        return {"ocr_text": [], "scene_description": ""}
+    return {"ocr_text": parsed.ocr_text, "scene_description": parsed.scene_description}
 
 
 def embed_text(text: str) -> list[float]:

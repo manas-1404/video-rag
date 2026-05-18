@@ -26,13 +26,21 @@ OVERLAP_SEC = 6.0
 def _get_model() -> WhisperModel:
     global _model
     if _model is None:
-        _model = WhisperModel("base", device="cpu", compute_type="int8")
+        _model = WhisperModel("tiny", device="cpu", compute_type="int8", cpu_threads=1)
     return _model
+
+
+def _unload_model():
+    global _model
+    import gc
+    _model = None
+    gc.collect()
 
 
 @client.create_function(
     fn_id="process-asr",
     trigger=inngest.TriggerEvent(event="extraction/complete"),
+    retries=3,
 )
 async def process_asr(ctx: inngest.Context) -> None:
     video_id: str = ctx.event.data["videoId"]
@@ -46,6 +54,7 @@ async def process_asr(ctx: inngest.Context) -> None:
     )
 
     words = await ctx.step.run("transcribe", lambda: _transcribe(audio_path))
+    _unload_model()
 
     chunks = _group_into_chunks(words)
 
