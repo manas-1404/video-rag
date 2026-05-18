@@ -52,7 +52,17 @@ function WaveformSpinner() {
   );
 }
 
-function LiveStatus({ steps }: { steps: AgentStep[] }) {
+function LiveStatus({ steps, synthesizing }: { steps: AgentStep[]; synthesizing: boolean }) {
+  if (synthesizing) {
+    return (
+      <div className="flex items-center gap-3 px-4 py-3 rounded-xl"
+        style={{ background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.18)" }}>
+        <WaveformSpinner />
+        <span className="text-sm text-indigo-300 font-medium">Synthesizing answer…</span>
+      </div>
+    );
+  }
+
   if (steps.length === 0) {
     return (
       <div className="flex items-center gap-3 px-4 py-3 rounded-xl"
@@ -95,6 +105,7 @@ export default function QueryInterface({ videoId, videoUrl, title }: Props) {
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
   const [liveSteps, setLiveSteps] = useState<AgentStep[]>([]);
+  const [synthesizing, setSynthesizing] = useState(false);
   const [seekTo, setSeekTo] = useState<number | null>(null);
   const [suggested, setSuggested] = useState<string[]>(SUGGESTED_FALLBACK);
   const [suggestionsLoading, setSuggestionsLoading] = useState(true);
@@ -134,6 +145,7 @@ export default function QueryInterface({ videoId, videoUrl, title }: Props) {
     setQuestion("");
     setLoading(true);
     setLiveSteps([]);
+    setSynthesizing(false);
 
     try {
       const res = await fetch("/api/query", {
@@ -171,7 +183,10 @@ export default function QueryInterface({ videoId, videoUrl, title }: Props) {
           let event: { type: string; [key: string]: unknown };
           try { event = JSON.parse(line); } catch { continue; }
 
-          if (event.type === "tool_call") {
+          if (event.type === "synthesizing") {
+            setSynthesizing(true);
+          } else if (event.type === "tool_call") {
+            setSynthesizing(false);
             const step: AgentStep = { type: "tool_call", tool: event.tool as string, query: event.query as string };
             capturedSteps = [...capturedSteps, step];
             setLiveSteps([...capturedSteps]);
@@ -181,6 +196,7 @@ export default function QueryInterface({ videoId, videoUrl, title }: Props) {
             setLiveSteps([...capturedSteps]);
           } else if (event.type === "answer") {
             const result = event as unknown as QueryResult & { type: string };
+            setSynthesizing(false);
             setMessages((prev) => [...prev, {
               role: "assistant",
               content: result.explanation,
@@ -190,6 +206,7 @@ export default function QueryInterface({ videoId, videoUrl, title }: Props) {
             setLiveSteps([]);
             setSeekTo(result.primaryTimestampMs);
           } else if (event.type === "error") {
+            setSynthesizing(false);
             setMessages((prev) => [...prev, {
               role: "assistant",
               content: (event.message as string) ?? "Something went wrong.",
@@ -210,6 +227,7 @@ export default function QueryInterface({ videoId, videoUrl, title }: Props) {
     } finally {
       setLoading(false);
       setLiveSteps([]);
+      setSynthesizing(false);
       inputRef.current?.focus();
     }
   }
@@ -322,7 +340,7 @@ export default function QueryInterface({ videoId, videoUrl, title }: Props) {
 
             {loading && (
               <div className="py-1">
-                <LiveStatus steps={liveSteps} />
+                <LiveStatus steps={liveSteps} synthesizing={synthesizing} />
               </div>
             )}
             <div ref={chatBottomRef} />

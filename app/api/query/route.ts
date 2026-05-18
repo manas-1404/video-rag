@@ -291,6 +291,8 @@ RULES:
               },
             ] : messages;
 
+            emit({ type: "synthesizing" });
+
             const synthesisResponse = allResults.length > 0
               ? await genAI.models.generateContent({
                   model: "gemini-2.5-pro",
@@ -357,6 +359,7 @@ RULES:
         // Fallback: loop exited without a synthesis step (iteration cap hit, or no candidate)
         if (!answered) {
           if (allResults.length > 0) {
+            emit({ type: "synthesizing" });
             // Force a synthesis pass over whatever we collected
             const forcedMessages = [
               ...messages,
