@@ -74,7 +74,7 @@ Based on this content, generate exactly 4 short, specific questions a user would
     const response = await genAI.models.generateContent({
       model: "gemini-2.5-flash",
       contents: prompt,
-      config: { thinkingConfig: { thinkingBudget: 0 } },
+      config: { temperature: 0 },
     });
 
     const raw = response.text?.trim() ?? "[]";
