@@ -3,14 +3,22 @@ Inngest function: extract-frames-and-audio
 Trigger: video/uploaded
 Invokes: process_asr + process_visual in parallel via ctx.group.parallel
 Effect: marks video READY after both complete
+
+pHash dedup runs before upload — only unique frames are uploaded to S3.
+Duplicate frames have their timestamps folded into the matching unique frame's
+timestamps_ms list so no timestamp is lost in the knowledge base.
 """
 
 import os
 import glob
 import tempfile
 import inngest
+import imagehash
+from PIL import Image
 from lib import db, storage
 from lib.inngest_client import client
+
+PHASH_SKIP_THRESHOLD = 8
 
 
 @client.create_function(
@@ -42,9 +50,9 @@ async def extract_frames_and_audio(ctx: inngest.Context) -> None:
 
         db.update_video_audio_url(video_id, audio_url)
 
-        frame_urls: list[str] = await ctx.step.run(
-            "upload-frames",
-            lambda: _upload_frames(video_id, frame_paths),
+        unique_frames: list[dict] = await ctx.step.run(
+            "dedup-and-upload-frames",
+            lambda: _dedup_and_upload_frames(video_id, frame_paths),
         )
 
         from .asr import process_asr
@@ -59,7 +67,7 @@ async def extract_frames_and_audio(ctx: inngest.Context) -> None:
             lambda: ctx.step.invoke(
                 "run-visual",
                 function=process_visual,
-                data={"videoId": video_id, "frameUrls": frame_urls},
+                data={"videoId": video_id, "frameUrls": unique_frames},
             ),
         ))
 
@@ -99,12 +107,31 @@ def _run_ffmpeg(video_path: str) -> tuple[str, list[str]]:
     return audio_path, frame_paths
 
 
-def _upload_frames(video_id: str, frame_paths: list[str]) -> list[str]:
-    urls = []
+def _dedup_and_upload_frames(video_id: str, frame_paths: list[str]) -> list[dict]:
+    seen: list[tuple[object, dict]] = []  # [(phash, entry), ...]
+
     for i, path in enumerate(frame_paths):
-        url = storage.upload_file(path, f"videos/{video_id}/frames/{i:04d}.jpg")
-        urls.append(url)
-    return urls
+        timestamp_ms = i * 1000
+        h = imagehash.phash(Image.open(path))
+
+        matched = None
+        for existing_hash, entry in seen:
+            if (h - existing_hash) <= PHASH_SKIP_THRESHOLD:
+                matched = entry
+                break
+
+        if matched is not None:
+            matched["timestamps_ms"].append(timestamp_ms)
+            os.remove(path)
+        else:
+            url = storage.upload_file(path, f"videos/{video_id}/frames/{i:04d}.jpg")
+            entry = {"url": url, "timestamps_ms": [timestamp_ms]}
+            seen.append((h, entry))
+
+    unique_frames = [entry for _, entry in seen]
+    skipped = len(frame_paths) - len(unique_frames)
+    print(f"[extract] {len(frame_paths)} frames → {len(unique_frames)} unique ({skipped} skipped, threshold={PHASH_SKIP_THRESHOLD})", flush=True)
+    return unique_frames
 
 
 def _cleanup(*paths):
