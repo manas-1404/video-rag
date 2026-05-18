@@ -22,26 +22,11 @@ export default function AuthForm({ mode }: Props) {
 
     try {
       if (mode === "register") {
-        const result = await authClient.signUp.email({
-          email,
-          password,
-          name,
-          callbackURL: "/upload",
-        });
-        if (result.error) {
-          setError(result.error.message ?? "Registration failed");
-          return;
-        }
+        const result = await authClient.signUp.email({ email, password, name, callbackURL: "/upload" });
+        if (result.error) { setError(result.error.message ?? "Registration failed"); return; }
       } else {
-        const result = await authClient.signIn.email({
-          email,
-          password,
-          callbackURL: "/upload",
-        });
-        if (result.error) {
-          setError(result.error.message ?? "Login failed");
-          return;
-        }
+        const result = await authClient.signIn.email({ email, password, callbackURL: "/upload" });
+        if (result.error) { setError(result.error.message ?? "Login failed"); return; }
       }
       router.push("/upload");
     } catch {
@@ -56,101 +41,89 @@ export default function AuthForm({ mode }: Props) {
       <div className="w-full max-w-sm fade-up">
         {/* Logo */}
         <div className="flex flex-col items-center mb-10">
-          <div className="logo-mark w-11 h-11 mb-4">
-            <svg width="22" height="22" viewBox="0 0 16 16" fill="none">
+          <div className="logo-mark w-12 h-12 mb-4">
+            <svg width="24" height="24" viewBox="0 0 16 16" fill="none">
               <circle cx="8" cy="8" r="3" fill="white" opacity="0.9" />
-              <circle cx="8" cy="8" r="6.5" stroke="white" strokeWidth="1" opacity="0.4" />
-              <line x1="8" y1="1.5" x2="8" y2="3" stroke="white" strokeWidth="1.2" opacity="0.6" />
-              <line x1="8" y1="13" x2="8" y2="14.5" stroke="white" strokeWidth="1.2" opacity="0.6" />
-              <line x1="1.5" y1="8" x2="3" y2="8" stroke="white" strokeWidth="1.2" opacity="0.6" />
-              <line x1="13" y1="8" x2="14.5" y2="8" stroke="white" strokeWidth="1.2" opacity="0.6" />
+              <circle cx="8" cy="8" r="6.5" stroke="white" strokeWidth="1" opacity="0.5" />
+              <line x1="8" y1="1.5" x2="8" y2="3" stroke="white" strokeWidth="1.4" opacity="0.7" />
+              <line x1="8" y1="13" x2="8" y2="14.5" stroke="white" strokeWidth="1.4" opacity="0.7" />
+              <line x1="1.5" y1="8" x2="3" y2="8" stroke="white" strokeWidth="1.4" opacity="0.7" />
+              <line x1="13" y1="8" x2="14.5" y2="8" stroke="white" strokeWidth="1.4" opacity="0.7" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight gradient-text">Meridian</h1>
-          <p className="mt-1.5 text-sm text-slate-400">
+          <h1 className="text-3xl font-bold tracking-tight gradient-text">Meridian</h1>
+          <p className="mt-2 text-base text-slate-400">
             {mode === "login" ? "Welcome back" : "Create your account"}
           </p>
         </div>
 
-        <div className="glass-card p-7">
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="glass-card p-8">
+          <form onSubmit={handleSubmit} className="space-y-5">
             {mode === "register" && (
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1.5">
-                  Full name
-                </label>
+                <label className="block text-sm font-semibold text-slate-300 mb-2">Full name</label>
                 <input
                   type="text"
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="input-glass w-full px-3.5 py-2.5 text-sm"
+                  className="input-glass px-4 py-3 text-base"
                   placeholder="Your name"
                 />
               </div>
             )}
 
             <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1.5">
-                Email address
-              </label>
+              <label className="block text-sm font-semibold text-slate-300 mb-2">Email address</label>
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="input-glass w-full px-3.5 py-2.5 text-sm"
+                className="input-glass px-4 py-3 text-base"
                 placeholder="you@example.com"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1.5">
-                Password
-              </label>
+              <label className="block text-sm font-semibold text-slate-300 mb-2">Password</label>
               <input
                 type="password"
                 required
                 minLength={8}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="input-glass w-full px-3.5 py-2.5 text-sm"
+                className="input-glass px-4 py-3 text-base"
                 placeholder="••••••••"
               />
             </div>
 
             {error && (
-              <div className="status-error rounded-lg px-3.5 py-2.5 text-sm">
+              <div className="status-error rounded-xl px-4 py-3 text-sm font-medium">
                 {error}
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn-primary w-full py-2.5 text-sm mt-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-            >
+            <button type="submit" disabled={loading} className="btn-primary w-full py-3 text-base mt-1">
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
-                  <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   Please wait…
                 </span>
               ) : mode === "login" ? "Sign in" : "Create account"}
             </button>
           </form>
 
-          <p className="mt-5 text-center text-xs text-slate-500">
+          <p className="mt-5 text-center text-sm text-slate-500">
             {mode === "login" ? (
-              <>
-                No account?{" "}
-                <Link href="/register" className="text-indigo-400 hover:text-indigo-300 transition-colors">
+              <>No account?{" "}
+                <Link href="/register" className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors">
                   Sign up free
                 </Link>
               </>
             ) : (
-              <>
-                Already have an account?{" "}
-                <Link href="/login" className="text-indigo-400 hover:text-indigo-300 transition-colors">
+              <>Already have an account?{" "}
+                <Link href="/login" className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors">
                   Sign in
                 </Link>
               </>
@@ -158,15 +131,10 @@ export default function AuthForm({ mode }: Props) {
           </p>
         </div>
 
-        {/* Modality chips below */}
+        {/* Modality chips */}
         <div className="flex items-center justify-center gap-2 mt-6">
-          {[
-            { icon: "🎙️", label: "Speech" },
-            { icon: "📄", label: "OCR" },
-            { icon: "👁️", label: "Visual" },
-          ].map(({ icon, label }) => (
-            <span key={label} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs glass"
-              style={{ color: "var(--text-muted)", border: "1px solid var(--border-subtle)" }}>
+          {[{ icon: "🎙️", label: "Speech" }, { icon: "📄", label: "OCR" }, { icon: "👁️", label: "Visual" }].map(({ icon, label }) => (
+            <span key={label} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full glass text-sm text-slate-400">
               {icon} {label}
             </span>
           ))}
