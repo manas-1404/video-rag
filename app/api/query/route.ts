@@ -169,6 +169,47 @@ async function searchScene(query: string, videoId: string): Promise<ToolResult[]
   }));
 }
 
+function emitAnswer(
+  emit: (e: object) => void,
+  rawText: string,
+  allResults: ToolResult[],
+) {
+  let answerJson: {
+    timestamp_ms: number;
+    explanation: string;
+    strongest_signal: "transcript" | "ocr" | "scene";
+  };
+
+  try {
+    const cleaned = rawText.replace(/^```json\n?/, "").replace(/\n?```$/, "");
+    answerJson = JSON.parse(cleaned);
+  } catch {
+    const best = allResults[0];
+    answerJson = {
+      timestamp_ms: best?.timestampMs ?? 0,
+      explanation: rawText || "I searched the video but couldn't produce a clear answer. Try rephrasing your question.",
+      strongest_signal: best?.source ?? "transcript",
+    };
+  }
+
+  const candidates = allResults.slice(0, 5).map((r, i) => ({
+    transcriptText: r.source === "transcript" ? r.text : "",
+    startMs: r.timestampMs,
+    endMs: r.timestampMs,
+    ocrText: r.source === "ocr" ? r.text.split(" | ") : [],
+    sceneDescription: r.source === "scene" ? r.text : "",
+    strongestSignal: r.source,
+    isBest: i === 0,
+  }));
+
+  emit({
+    type: "answer",
+    primaryTimestampMs: answerJson.timestamp_ms ?? allResults[0]?.timestampMs ?? 0,
+    explanation: answerJson.explanation,
+    candidates,
+  });
+}
+
 export async function POST(request: Request) {
   const session = await auth.api.getSession({ headers: request.headers });
   if (!session) {
@@ -232,6 +273,7 @@ Current question: "${question}"`,
 
         const allResults: ToolResult[] = [];
         let iterations = 0;
+        let answered = false;
 
         while (iterations < 3) {
           const response = await genAI.models.generateContent({
@@ -244,14 +286,12 @@ Current question: "${question}"`,
           });
 
           const candidate = response.candidates?.[0];
-          if (!candidate) break;
+          if (!candidate || !candidate.content) break;
 
-          const functionCalls = candidate.content?.parts?.filter((p: { functionCall?: unknown }) => p.functionCall) ?? [];
-          if (!candidate.content) break;
+          const functionCalls = candidate.content.parts?.filter((p: { functionCall?: unknown }) => p.functionCall) ?? [];
 
           if (functionCalls.length === 0) {
             // No more tool calls — synthesize final answer
-            // Re-ask with strict grounding instructions if we have results
             const synthesisMessages = allResults.length > 0 ? [
               ...messages,
               {
@@ -277,43 +317,8 @@ RULES:
                 })
               : response;
 
-            const text = synthesisResponse.text?.trim() ?? "";
-            let answerJson: {
-              timestamp_ms: number;
-              explanation: string;
-              strongest_signal: "transcript" | "ocr" | "scene";
-            };
-
-            try {
-              const cleaned = text.replace(/^```json\n?/, "").replace(/\n?```$/, "");
-              answerJson = JSON.parse(cleaned);
-            } catch {
-              // Gemini returned plain text — wrap it
-              const best = allResults[0];
-              answerJson = {
-                timestamp_ms: best?.timestampMs ?? 0,
-                explanation: text,
-                strongest_signal: best?.source ?? "transcript",
-              };
-            }
-
-            // Build candidates from all gathered results
-            const candidates = allResults.slice(0, 5).map((r, i) => ({
-              transcriptText: r.source === "transcript" ? r.text : "",
-              startMs: r.timestampMs,
-              endMs: r.timestampMs,
-              ocrText: r.source === "ocr" ? r.text.split(" | ") : [],
-              sceneDescription: r.source === "scene" ? r.text : "",
-              strongestSignal: r.source,
-              isBest: i === 0,
-            }));
-
-            emit({
-              type: "answer",
-              primaryTimestampMs: answerJson.timestamp_ms ?? allResults[0]?.timestampMs ?? 0,
-              explanation: answerJson.explanation,
-              candidates,
-            });
+            answered = true;
+            emitAnswer(emit, synthesisResponse.text?.trim() ?? "", allResults);
             break;
           }
 
@@ -360,11 +365,47 @@ RULES:
 
           messages = [
             ...messages,
-            { role: "model", parts: candidate.content?.parts ?? [] },
+            { role: "model", parts: candidate.content.parts ?? [] },
             { role: "tool", parts: toolResponseParts },
           ];
 
           iterations++;
+        }
+
+        // Fallback: loop exited without a synthesis step (iteration cap hit, or no candidate)
+        if (!answered) {
+          if (allResults.length > 0) {
+            // Force a synthesis pass over whatever we collected
+            const forcedMessages = [
+              ...messages,
+              {
+                role: "user",
+                parts: [{
+                  text: `You have searched the video and collected results. Now answer the question using only those results.
+
+RULES:
+- Use ONLY the exact timestamp_ms values from the tool results.
+- Do not write any timestamps in your explanation text.
+- Summarise all relevant findings — this may be a list or multi-part answer.
+- Return ONLY valid JSON: {"timestamp_ms": <best timestamp_ms>, "explanation": "<your answer>", "strongest_signal": "<transcript|ocr|scene>"}`,
+                }],
+              },
+            ];
+            const forcedResponse = await genAI.models.generateContent({
+              model: "gemini-2.5-pro",
+              contents: forcedMessages,
+              config: { thinkingConfig: { thinkingBudget: 1024 } },
+            });
+            emitAnswer(emit, forcedResponse.text?.trim() ?? "", allResults);
+          } else {
+            // No tools were called or all returned empty — emit a graceful answer
+            emit({
+              type: "answer",
+              primaryTimestampMs: 0,
+              explanation: "I searched the video across speech, on-screen text, and visual context but couldn't find relevant information to answer your question. Try rephrasing or asking about a more specific moment.",
+              candidates: [],
+            });
+          }
         }
       } catch (err) {
         emit({ type: "error", message: err instanceof Error ? err.message : "Unknown error" });
