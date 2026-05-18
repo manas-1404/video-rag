@@ -157,7 +157,6 @@ def _embed_and_store(video_id: str, chunks: list[dict]):
             sentence=chunk["text"],
             start_ms=chunk["start_ms"],
             end_ms=chunk["end_ms"],
-            namespace="transcripts",
         )
 
         db.insert_asr_chunk(

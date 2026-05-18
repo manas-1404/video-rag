@@ -119,7 +119,6 @@ async function searchTranscript(query: string, videoId: string): Promise<ToolRes
     topK: 3,
     filter: { video_id: { $eq: videoId } },
     includeMetadata: true,
-    namespace: "transcripts",
   });
   return result.matches.map((m) => ({
     timestampMs: (m.metadata?.start_ms as number) ?? 0,
@@ -201,12 +200,16 @@ export async function POST(request: Request) {
             role: "user",
             parts: [
               {
-                text: `You are a video intelligence assistant with access to search tools for a video's transcript, on-screen text, and visual scenes. Use the tools to find relevant moments, then answer the question.
+                text: `You are a video intelligence assistant with access to search tools for a video's transcript, on-screen text, and visual scenes. Your job is to always attempt to answer using the tools — never refuse.
+
+For complex analytical questions (contradictions, comparisons, summaries, lists of moments), search broadly across multiple queries and use the results to reason and answer. If you cannot find enough evidence, say what you did find rather than refusing.
 
 STRICT RULES:
+- Always call at least one tool before answering.
 - Never invent, approximate, or guess timestamps. Only use exact timestamp_ms values returned by the tools.
 - Never reference a time (e.g. "0:01:19") unless that exact value came from a tool result.
 - Base your answer only on what the tools returned. Do not use prior knowledge.
+- Never refuse to answer — always search first, then reason over results.
 
 Question: "${question}"`,
               },
@@ -219,7 +222,7 @@ Question: "${question}"`,
 
         while (iterations < 3) {
           const response = await genAI.models.generateContent({
-            model: "gemini-2.5-flash",
+            model: "gemini-2.5-pro",
             contents: messages,
             config: {
               tools: TOOLS,
@@ -241,19 +244,21 @@ Question: "${question}"`,
               {
                 role: "user",
                 parts: [{
-                  text: `Based only on the tool results above, answer the question.
+                  text: `Based only on the tool results above, answer the question. Reason over all retrieved results — do not just pick one.
 
 RULES:
 - Use ONLY the exact timestamp_ms values from the tool results. Do not write any timestamps in your explanation text.
-- Answer directly and concisely in 1-3 sentences.
-- Return ONLY valid JSON: {"timestamp_ms": <exact value from tool results>, "explanation": "<answer with no timestamps mentioned>", "strongest_signal": "<transcript|ocr|scene>"}`,
+- Answer directly and concisely. For analytical questions (contradictions, comparisons, lists), summarise what you found across all results.
+- If results don't contain enough information, say what was found rather than refusing.
+- Never refuse to answer.
+- Return ONLY valid JSON: {"timestamp_ms": <best matching timestamp_ms from tool results>, "explanation": "<answer with no timestamps mentioned>", "strongest_signal": "<transcript|ocr|scene>"}`,
                 }],
               },
             ] : messages;
 
             const synthesisResponse = allResults.length > 0
               ? await genAI.models.generateContent({
-                  model: "gemini-2.5-flash",
+                  model: "gemini-2.5-pro",
                   contents: synthesisMessages,
                   config: { thinkingConfig: { thinkingBudget: 0 } },
                 })
