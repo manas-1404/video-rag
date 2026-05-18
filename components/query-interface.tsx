@@ -35,11 +35,11 @@ const TOOL_META: Record<string, { icon: string; label: string }> = {
   search_scene:      { icon: "👁️", label: "Visual context" },
 };
 
-const SUGGESTED = [
+const SUGGESTED_FALLBACK = [
   "What is the main topic discussed?",
   "Find where a chart or graph appears",
-  "When does the speaker mention pricing?",
   "What text is visible on screen?",
+  "Summarise the key points covered",
 ];
 
 function WaveformSpinner() {
@@ -96,6 +96,8 @@ export default function QueryInterface({ videoId, videoUrl, title }: Props) {
   const [loading, setLoading] = useState(false);
   const [liveSteps, setLiveSteps] = useState<AgentStep[]>([]);
   const [seekTo, setSeekTo] = useState<number | null>(null);
+  const [suggested, setSuggested] = useState<string[]>(SUGGESTED_FALLBACK);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(true);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
 
@@ -104,6 +106,18 @@ export default function QueryInterface({ videoId, videoUrl, title }: Props) {
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  useEffect(() => {
+    fetch(`/api/suggestions?videoId=${videoId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data.suggestions) && data.suggestions.length > 0) {
+          setSuggested(data.suggestions);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setSuggestionsLoading(false));
+  }, [videoId]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -263,16 +277,23 @@ export default function QueryInterface({ videoId, videoUrl, title }: Props) {
                   </p>
                 </div>
                 <div className="space-y-2 w-full max-w-xs">
-                  {SUGGESTED.map((q) => (
-                    <button
-                      key={q}
-                      onClick={() => { setQuestion(q); inputRef.current?.focus(); }}
-                      className="w-full text-left text-sm px-4 py-3 rounded-xl transition-all text-slate-400 hover:text-slate-200"
-                      style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)" }}
-                    >
-                      {q}
-                    </button>
-                  ))}
+                  {suggestionsLoading ? (
+                    Array.from({ length: 4 }).map((_, i) => (
+                      <div key={i} className="h-11 rounded-xl animate-pulse"
+                        style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }} />
+                    ))
+                  ) : (
+                    suggested.map((q) => (
+                      <button
+                        key={q}
+                        onClick={() => { setQuestion(q); inputRef.current?.focus(); }}
+                        className="w-full text-left text-sm px-4 py-3 rounded-xl transition-all text-slate-400 hover:text-slate-200"
+                        style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)" }}
+                      >
+                        {q}
+                      </button>
+                    ))
+                  )}
                 </div>
               </div>
             )}
