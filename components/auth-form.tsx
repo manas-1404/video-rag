@@ -52,99 +52,125 @@ export default function AuthForm({ mode }: Props) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <div className="mb-8 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-100">
-            VideoRAG
-          </h1>
-          <p className="mt-1 text-sm text-zinc-400">
-            {mode === "login" ? "Sign in to your account" : "Create an account"}
+    <div className="min-h-screen flex items-center justify-center px-4 py-16">
+      <div className="w-full max-w-sm fade-up">
+        {/* Logo */}
+        <div className="flex flex-col items-center mb-10">
+          <div className="logo-mark w-11 h-11 mb-4">
+            <svg width="22" height="22" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="3" fill="white" opacity="0.9" />
+              <circle cx="8" cy="8" r="6.5" stroke="white" strokeWidth="1" opacity="0.4" />
+              <line x1="8" y1="1.5" x2="8" y2="3" stroke="white" strokeWidth="1.2" opacity="0.6" />
+              <line x1="8" y1="13" x2="8" y2="14.5" stroke="white" strokeWidth="1.2" opacity="0.6" />
+              <line x1="1.5" y1="8" x2="3" y2="8" stroke="white" strokeWidth="1.2" opacity="0.6" />
+              <line x1="13" y1="8" x2="14.5" y2="8" stroke="white" strokeWidth="1.2" opacity="0.6" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight gradient-text">Meridian</h1>
+          <p className="mt-1.5 text-sm text-slate-400">
+            {mode === "login" ? "Welcome back" : "Create your account"}
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {mode === "register" && (
+        <div className="glass-card p-7">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {mode === "register" && (
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1.5">
+                  Full name
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="input-glass w-full px-3.5 py-2.5 text-sm"
+                  placeholder="Your name"
+                />
+              </div>
+            )}
+
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-1">
-                Name
+              <label className="block text-xs font-medium text-slate-400 mb-1.5">
+                Email address
               </label>
               <input
-                type="text"
+                type="email"
                 required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-violet-500"
-                placeholder="Your name"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="input-glass w-full px-3.5 py-2.5 text-sm"
+                placeholder="you@example.com"
               />
             </div>
-          )}
 
-          <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-1">
-              Email
-            </label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-violet-500"
-              placeholder="you@example.com"
-            />
-          </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1.5">
+                Password
+              </label>
+              <input
+                type="password"
+                required
+                minLength={8}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="input-glass w-full px-3.5 py-2.5 text-sm"
+                placeholder="••••••••"
+              />
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-1">
-              Password
-            </label>
-            <input
-              type="password"
-              required
-              minLength={8}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-violet-500"
-              placeholder="••••••••"
-            />
-          </div>
+            {error && (
+              <div className="status-error rounded-lg px-3.5 py-2.5 text-sm">
+                {error}
+              </div>
+            )}
 
-          {error && (
-            <p className="text-sm text-red-400 bg-red-950/30 border border-red-800/40 rounded-lg px-3 py-2">
-              {error}
-            </p>
-          )}
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn-primary w-full py-2.5 text-sm mt-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+            >
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Please wait…
+                </span>
+              ) : mode === "login" ? "Sign in" : "Create account"}
+            </button>
+          </form>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {loading
-              ? "Please wait…"
-              : mode === "login"
-              ? "Sign in"
-              : "Create account"}
-          </button>
-        </form>
+          <p className="mt-5 text-center text-xs text-slate-500">
+            {mode === "login" ? (
+              <>
+                No account?{" "}
+                <Link href="/register" className="text-indigo-400 hover:text-indigo-300 transition-colors">
+                  Sign up free
+                </Link>
+              </>
+            ) : (
+              <>
+                Already have an account?{" "}
+                <Link href="/login" className="text-indigo-400 hover:text-indigo-300 transition-colors">
+                  Sign in
+                </Link>
+              </>
+            )}
+          </p>
+        </div>
 
-        <p className="mt-4 text-center text-sm text-zinc-500">
-          {mode === "login" ? (
-            <>
-              No account?{" "}
-              <Link href="/register" className="text-violet-400 hover:text-violet-300">
-                Sign up
-              </Link>
-            </>
-          ) : (
-            <>
-              Already have an account?{" "}
-              <Link href="/login" className="text-violet-400 hover:text-violet-300">
-                Sign in
-              </Link>
-            </>
-          )}
-        </p>
+        {/* Modality chips below */}
+        <div className="flex items-center justify-center gap-2 mt-6">
+          {[
+            { icon: "🎙️", label: "Speech" },
+            { icon: "📄", label: "OCR" },
+            { icon: "👁️", label: "Visual" },
+          ].map(({ icon, label }) => (
+            <span key={label} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs glass"
+              style={{ color: "var(--text-muted)", border: "1px solid var(--border-subtle)" }}>
+              {icon} {label}
+            </span>
+          ))}
+        </div>
       </div>
     </div>
   );

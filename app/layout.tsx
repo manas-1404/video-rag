@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "VideoRAG — Ask anything about your video",
+  title: "Meridian — Ask anything about your video",
   description:
-    "Upload a video and ask natural language questions. Get precise timestamped answers from audio, on-screen text, and visual context.",
+    "Upload a video and ask natural language questions. Get precise timestamped answers from speech, on-screen text, and visual context.",
 };
 
 export default function RootLayout({
@@ -29,9 +29,16 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-zinc-950 text-zinc-100">
-        <Navbar />
-        {children}
+      <body className="min-h-full flex flex-col" style={{ background: "var(--bg-base)", color: "var(--text-primary)" }}>
+        <div className="ambient-bg" aria-hidden>
+          <div className="orb orb-1" />
+          <div className="orb orb-2" />
+          <div className="orb orb-3" />
+        </div>
+        <div className="relative z-10 flex flex-col min-h-full">
+          <Navbar />
+          {children}
+        </div>
       </body>
     </html>
   );
