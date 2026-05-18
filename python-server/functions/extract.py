@@ -1,7 +1,8 @@
 """
 Inngest function: extract-frames-and-audio
 Trigger: video/uploaded
-Emits:  extraction/complete
+Invokes: process_asr + process_visual in parallel via ctx.group.parallel
+Effect: marks video READY after both complete
 """
 
 import os
@@ -46,16 +47,25 @@ async def extract_frames_and_audio(ctx: inngest.Context) -> None:
             lambda: _upload_frames(video_id, frame_paths),
         )
 
-        await ctx.step.send_event(
-            "emit-extraction-complete",
-            inngest.Event(
-                name="extraction/complete",
-                data={
-                    "videoId": video_id,
-                    "audioUrl": audio_url,
-                    "frameUrls": frame_urls,
-                },
+        from .asr import process_asr
+        from .visual import process_visual
+
+        await ctx.group.parallel((
+            lambda: ctx.step.invoke(
+                "run-asr",
+                function=process_asr,
+                data={"videoId": video_id, "audioUrl": audio_url},
             ),
+            lambda: ctx.step.invoke(
+                "run-visual",
+                function=process_visual,
+                data={"videoId": video_id, "frameUrls": frame_urls},
+            ),
+        ))
+
+        await ctx.step.run(
+            "set-status-ready",
+            lambda: db.update_video_status(video_id, "READY"),
         )
     finally:
         _cleanup(video_path, audio_path)

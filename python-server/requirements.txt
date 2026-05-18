@@ -10,4 +10,6 @@ requests==2.32.3
 boto3==1.38.0
 python-multipart==0.0.18
 pillow==11.0.0
+imagehash==4.3.1
+scipy==1.15.3
 python-dotenv==1.0.1

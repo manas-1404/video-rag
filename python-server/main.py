@@ -5,7 +5,7 @@ import boto3
 import inngest.fast_api
 from fastapi import FastAPI
 from lib.inngest_client import client
-from functions import extract_frames_and_audio, process_asr, process_visual, mark_ready
+from functions import extract_frames_and_audio, process_asr, process_visual
 from lib.gemini_client import _client
 
 load_dotenv()
@@ -24,6 +24,7 @@ required = [
 for var in required:
     val = os.environ.get(var)
     print(f"[startup] {var}: {'SET' if val else 'MISSING'}", file=sys.stderr)
+    print(f"[startup] hahahahahhahahahhahahahahhahahahhahaaa------24-4-2-4-2-4-2----")
 
 response = _client.models.generate_content(model="gemini-2.5-flash", contents="tell me a short story in 2 line")
 print(response)
@@ -63,7 +64,7 @@ app = FastAPI(title="VideoRAG Python Server")
 inngest.fast_api.serve(
     app,
     client,
-    [extract_frames_and_audio, process_asr, process_visual, mark_ready],
+    [extract_frames_and_audio, process_asr, process_visual],
 )
 
 
