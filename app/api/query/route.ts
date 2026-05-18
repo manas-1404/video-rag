@@ -254,17 +254,30 @@ export async function POST(request: Request) {
             role: "user",
             parts: [
               {
-                text: `You are a video intelligence assistant with access to search tools for a video's transcript, on-screen text, and visual scenes. Your job is to always attempt to answer using the tools — never refuse.
+                text: `You are a video intelligence assistant. You have three search tools:
+- search_transcript: searches the spoken audio transcript
+- search_ocr: searches text visible on screen (slides, captions, titles, whiteboards, code)
+- search_scene: searches visual scene descriptions (what is happening, who is visible, objects, actions)
 
-For complex analytical questions (contradictions, comparisons, summaries, lists of moments), search broadly across multiple queries and use the results to reason and answer. If you cannot find enough evidence, say what you did find rather than refusing.
-
-STRICT RULES:
-- Always call at least one tool before answering.
-- Never invent, approximate, or guess timestamps. Only use exact timestamp_ms values returned by the tools.
-- Never reference a time (e.g. "0:01:19") unless that exact value came from a tool result.
-- Base your answer only on what the tools returned. Do not use prior knowledge.
-- Never refuse to answer — always search first, then reason over results.
+Your job is to answer the question by searching thoroughly. You must NEVER give up after one failed search.
 ${conversationContext}
+SEARCH STRATEGY — follow this every time:
+1. Search all three tools with an initial query relevant to the question.
+2. After receiving results, REFLECT: are the results sufficient to answer fully? If not, search again.
+3. If a search returns 0 or few results, do NOT stop. Reformulate the query — try synonyms, broader terms, or break the question into sub-queries — then search again.
+4. For list/summary questions (e.g. "all headings", "every time X is mentioned", "what topics are covered"), you MUST run multiple searches with varied queries to collect all instances. One search is never enough for these.
+5. Try every relevant tool before concluding. A failed transcript search does not mean OCR or scene search will also fail.
+6. Only stop searching and move to answering when you have enough evidence, or you have genuinely exhausted varied query attempts.
+
+TIMESTAMP RULES:
+- Never invent or approximate timestamps. Only use exact timestamp_ms values returned by the tools.
+- Do not mention timestamps in your explanation text.
+
+ANSWERING RULES:
+- Base your answer only on what the tools returned.
+- If results are thin, report what you did find rather than refusing.
+- Never say "I cannot answer" — always reason over whatever was retrieved.
+
 Current question: "${question}"`,
               },
             ],
@@ -275,7 +288,8 @@ Current question: "${question}"`,
         let iterations = 0;
         let answered = false;
 
-        while (iterations < 3) {
+        // Raised from 3 to 6 — list/summary questions need multiple search rounds
+        while (iterations < 6) {
           const response = await genAI.models.generateContent({
             model: "gemini-2.5-pro",
             contents: messages,
@@ -291,20 +305,22 @@ Current question: "${question}"`,
           const functionCalls = candidate.content.parts?.filter((p: { functionCall?: unknown }) => p.functionCall) ?? [];
 
           if (functionCalls.length === 0) {
-            // No more tool calls — synthesize final answer
+            // Model decided to stop searching — synthesize
             const synthesisMessages = allResults.length > 0 ? [
               ...messages,
               {
                 role: "user",
                 parts: [{
-                  text: `Based only on the tool results above, answer the question. Reason over all retrieved results — do not just pick one.
+                  text: `You have finished searching. Now synthesize a final answer using ONLY the tool results above.
 
 RULES:
-- Use ONLY the exact timestamp_ms values from the tool results. Do not write any timestamps in your explanation text.
-- Answer directly and concisely. For analytical questions (contradictions, comparisons, lists), summarise what you found across all results.
-- If results don't contain enough information, say what was found rather than refusing.
-- Never refuse to answer.
-- Return ONLY valid JSON: {"timestamp_ms": <best matching timestamp_ms from tool results>, "explanation": "<answer with no timestamps mentioned>", "strongest_signal": "<transcript|ocr|scene>"}`,
+- Reason over ALL retrieved results, not just the first one.
+- For list/summary questions, compile every relevant item found across all searches.
+- Do not mention timestamps in your explanation.
+- Use ONLY timestamp_ms values that came from tool results.
+- If evidence is partial, say what was found and note what may be missing.
+- Return ONLY valid JSON (no markdown fences):
+{"timestamp_ms": <best or most relevant timestamp_ms from results, or 0 if none>, "explanation": "<your full answer>", "strongest_signal": "<transcript|ocr|scene>"}`,
                 }],
               },
             ] : messages;
@@ -313,7 +329,7 @@ RULES:
               ? await genAI.models.generateContent({
                   model: "gemini-2.5-pro",
                   contents: synthesisMessages,
-                  config: { thinkingConfig: { thinkingBudget: 1024 } },
+                  config: { thinkingConfig: { thinkingBudget: 2048 } },
                 })
               : response;
 
