@@ -8,129 +8,240 @@ export default async function Home() {
   if (session) redirect("/videos");
 
   return (
-    <main className="flex-1 flex flex-col">
-      {/* Hero */}
-      <section className="flex-1 flex flex-col items-center justify-center px-6 pt-24 pb-20 text-center relative">
-        {/* Subtle grid overlay */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            backgroundImage: `linear-gradient(rgba(255,255,255,0.028) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(255,255,255,0.028) 1px, transparent 1px)`,
-            backgroundSize: "72px 72px",
-          }}
-        />
+    <main className="flex-1 flex flex-col overflow-x-hidden">
 
-        {/* Badge */}
-        <div className="fade-up fade-up-1 inline-flex items-center gap-2 px-4 py-2 rounded-full glass mb-8 text-sm text-slate-300 font-medium">
-          <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse inline-block" />
-          Multimodal Video Intelligence
+      {/* ── HERO ─────────────────────────────────────────────── */}
+      <section className="relative flex flex-col items-center justify-center px-6 pt-28 pb-24 text-center">
+        {/* Grid overlay */}
+        <div className="absolute inset-0 pointer-events-none" style={{
+          backgroundImage: `linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)`,
+          backgroundSize: "64px 64px",
+        }} />
+
+        {/* Brand */}
+        <div className="fade-up fade-up-1 flex items-center gap-3 mb-10">
+          <div className="logo-mark w-11 h-11">
+            <svg width="22" height="22" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="3" fill="white" opacity="0.9" />
+              <circle cx="8" cy="8" r="6.5" stroke="white" strokeWidth="1" opacity="0.4" />
+              <line x1="8" y1="1.5" x2="8" y2="3" stroke="white" strokeWidth="1.2" opacity="0.7" />
+              <line x1="8" y1="13" x2="8" y2="14.5" stroke="white" strokeWidth="1.2" opacity="0.7" />
+              <line x1="1.5" y1="8" x2="3" y2="8" stroke="white" strokeWidth="1.2" opacity="0.7" />
+              <line x1="13" y1="8" x2="14.5" y2="8" stroke="white" strokeWidth="1.2" opacity="0.7" />
+            </svg>
+          </div>
+          <span className="text-3xl font-bold tracking-tight gradient-text">Meridian</span>
         </div>
 
         {/* Headline */}
-        <h1 className="fade-up fade-up-2 text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight leading-tight mb-6 max-w-3xl">
-          <span className="gradient-text">Ask anything.</span>
+        <h1 className="fade-up fade-up-2 text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight leading-[1.08] mb-5 max-w-3xl">
+          <span className="text-slate-100">Your video,</span>
           <br />
-          <span className="text-slate-100">Find the exact moment.</span>
+          <span className="gradient-text">fully searchable.</span>
         </h1>
 
-        {/* Subheading */}
-        <p className="fade-up fade-up-3 text-xl text-slate-400 max-w-xl leading-relaxed mb-10">
-          Meridian searches your video across three intelligence layers —
-          speech, on-screen text, and visual context — and pins the precise timestamp.
+        {/* Sub */}
+        <p className="fade-up fade-up-3 text-lg text-slate-400 max-w-md leading-relaxed mb-10">
+          Ask any question. Meridian finds the exact moment — from what was said,
+          what was on screen, and what was happening visually.
         </p>
 
-        {/* CTA */}
-        <div className="fade-up fade-up-4 flex flex-col sm:flex-row items-center gap-3 mb-20">
-          <Link href="/register" className="btn-primary text-base px-8 py-3">
-            Start for free
+        {/* CTAs */}
+        <div className="fade-up fade-up-4 flex items-center gap-3 mb-20">
+          <Link href="/register" className="btn-primary text-base px-7 py-3">
+            Get started free
           </Link>
-          <Link href="/login" className="btn-ghost text-base px-8 py-3">
+          <Link href="/login" className="btn-ghost text-base px-7 py-3">
             Sign in
           </Link>
         </div>
 
-        {/* Three pillars */}
-        <div className="fade-up fade-up-4 grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl w-full">
-          <ModalityCard
-            icon="🎙️"
-            label="Speech"
-            description="Full transcript search with word-level timestamps from Whisper ASR"
-            bg="rgba(96,165,250,0.1)"
-            border="rgba(96,165,250,0.22)"
-          />
-          <ModalityCard
-            icon="📄"
-            label="On-screen Text"
-            description="Every frame scanned for text — slides, captions, signs, code"
-            bg="rgba(251,191,36,0.09)"
-            border="rgba(251,191,36,0.2)"
-          />
-          <ModalityCard
-            icon="👁️"
-            label="Visual Context"
-            description="Scene-level understanding of what's happening on screen"
-            bg="rgba(52,211,153,0.09)"
-            border="rgba(52,211,153,0.2)"
-          />
+        {/* UI Mockup */}
+        <div className="fade-up fade-up-4 w-full max-w-3xl rounded-2xl overflow-hidden"
+          style={{ border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.03)", boxShadow: "0 40px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(99,102,241,0.12)" }}>
+          {/* Titlebar */}
+          <div className="flex items-center gap-2 px-4 py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)", background: "rgba(0,0,0,0.3)" }}>
+            <div className="w-2.5 h-2.5 rounded-full" style={{ background: "rgba(255,255,255,0.15)" }} />
+            <div className="w-2.5 h-2.5 rounded-full" style={{ background: "rgba(255,255,255,0.15)" }} />
+            <div className="w-2.5 h-2.5 rounded-full" style={{ background: "rgba(255,255,255,0.15)" }} />
+            <span className="ml-3 text-xs text-slate-600 font-mono">meridian — product-demo.mp4</span>
+          </div>
+
+          <div className="flex" style={{ minHeight: "260px" }}>
+            {/* Video side */}
+            <div className="w-[52%] p-4 flex flex-col gap-3" style={{ borderRight: "1px solid rgba(255,255,255,0.07)" }}>
+              <div className="rounded-xl flex-1 flex items-center justify-center relative overflow-hidden"
+                style={{ background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.07)", minHeight: "140px" }}>
+                <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "rgba(99,102,241,0.3)", border: "1px solid rgba(99,102,241,0.4)" }}>
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                    <path d="M3 2l9 5-9 5V2z" fill="#a5b4fc" />
+                  </svg>
+                </div>
+                <div className="absolute bottom-3 left-3 right-3">
+                  <div className="h-0.5 rounded-full" style={{ background: "rgba(255,255,255,0.08)" }}>
+                    <div className="h-0.5 rounded-full w-[38%]" style={{ background: "linear-gradient(90deg, #6366f1, #22d3ee)" }} />
+                  </div>
+                </div>
+              </div>
+              {/* Evidence card */}
+              <div className="rounded-xl p-3" style={{ background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.22)" }}>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-xs font-mono text-cyan-400">▶ 2:14</span>
+                  <span className="signal-transcript text-xs font-semibold px-2 py-0.5 rounded-full">Speech</span>
+                </div>
+                <p className="text-xs text-slate-400 italic">&ldquo;…the four key stages of the on-device pipeline are…&rdquo;</p>
+              </div>
+            </div>
+
+            {/* Chat side */}
+            <div className="flex-1 flex flex-col justify-between p-4 gap-3">
+              <div className="space-y-3">
+                {/* User bubble */}
+                <div className="flex justify-end">
+                  <div className="bubble-user text-xs px-3 py-2 max-w-[80%]">
+                    What are the 4 stages of the pipeline?
+                  </div>
+                </div>
+                {/* AI bubble */}
+                <div className="bubble-ai text-xs px-3 py-2.5 leading-relaxed text-slate-300">
+                  The four key stages are: <span className="text-slate-100 font-medium">Input Processing, Embedding, Retrieval,</span> and <span className="text-slate-100 font-medium">Generation</span> — introduced at 2:14 in the slides.
+                </div>
+                {/* Timestamp */}
+                <span className="timestamp-badge text-xs">▶ Jump to 2:14</span>
+              </div>
+              {/* Input bar */}
+              <div className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)" }}>
+                <span className="text-xs text-slate-600 flex-1">Ask anything about the video…</span>
+                <div className="w-5 h-5 rounded-md flex items-center justify-center" style={{ background: "linear-gradient(135deg,#5b5fef,#7c3aed)" }}>
+                  <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+                    <path d="M8 4.5H1M4.5 1l3.5 3.5-3.5 3.5" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* How it works */}
-      <section className="px-6 py-20 max-w-3xl mx-auto w-full">
-        <p className="text-sm font-semibold uppercase tracking-widest mb-8 text-center text-slate-500">
-          How it works
-        </p>
-        <ol className="space-y-4">
-          {[
-            {
-              step: "01",
-              title: "Upload your video",
-              body: "Drop any MP4, MOV, or WebM up to 500 MB. Meridian starts processing immediately.",
-            },
-            {
-              step: "02",
-              title: "Parallel indexing",
-              body: "Meridian listens to the audio, reads every word on screen, and understands what's visually happening — all at once. Every second of your video becomes searchable.",
-            },
-            {
-              step: "03",
-              title: "Ask in plain language",
-              body: "Type any question. The agent cross-searches all three channels and returns the best matching timestamp.",
-            },
-          ].map(({ step, title, body }) => (
-            <li key={step} className="glass-card p-6 flex gap-5 items-start">
-              <span className="font-mono text-sm font-bold shrink-0 mt-0.5 text-indigo-400">{step}</span>
-              <div>
-                <p className="font-semibold text-lg text-slate-100 mb-1">{title}</p>
-                <p className="text-base text-slate-400 leading-relaxed">{body}</p>
+      {/* ── THREE CHANNELS ───────────────────────────────────── */}
+      <section className="px-6 py-20">
+        <div className="max-w-4xl mx-auto">
+          <p className="text-xs font-bold uppercase tracking-widest text-slate-600 text-center mb-3">How Meridian sees your video</p>
+          <p className="text-2xl font-semibold text-slate-100 text-center mb-12">Three layers. One answer.</p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            {[
+              {
+                icon: "🎙️",
+                label: "Speech",
+                color: "rgba(96,165,250,0.12)",
+                border: "rgba(96,165,250,0.25)",
+                glow: "rgba(96,165,250,0.08)",
+                accent: "#93c5fd",
+                lines: ["Word-level timestamps", "Verbatim accuracy", "No hallucination"],
+              },
+              {
+                icon: "📄",
+                label: "On-screen Text",
+                color: "rgba(251,191,36,0.1)",
+                border: "rgba(251,191,36,0.25)",
+                glow: "rgba(251,191,36,0.07)",
+                accent: "#fcd34d",
+                lines: ["Slides & whiteboards", "Captions & overlays", "Code & diagrams"],
+              },
+              {
+                icon: "👁️",
+                label: "Visual Context",
+                color: "rgba(52,211,153,0.1)",
+                border: "rgba(52,211,153,0.25)",
+                glow: "rgba(52,211,153,0.07)",
+                accent: "#6ee7b7",
+                lines: ["Scene understanding", "Gestures & actions", "Objects & people"],
+              },
+            ].map(({ icon, label, color, border, glow, accent, lines }) => (
+              <div key={label} className="rounded-2xl p-6 flex flex-col gap-4"
+                style={{ background: color, border: `1px solid ${border}`, boxShadow: `0 8px 32px ${glow}` }}>
+                <div className="text-4xl">{icon}</div>
+                <p className="text-lg font-bold text-slate-100">{label}</p>
+                <ul className="space-y-2">
+                  {lines.map((l) => (
+                    <li key={l} className="flex items-center gap-2 text-sm text-slate-400">
+                      <span className="w-1 h-1 rounded-full shrink-0" style={{ background: accent }} />
+                      {l}
+                    </li>
+                  ))}
+                </ul>
               </div>
-            </li>
-          ))}
-        </ol>
+            ))}
+          </div>
+        </div>
       </section>
 
-      {/* Footer */}
-      <footer className="text-center py-8 text-sm text-slate-600 border-t border-white/5">
-        Meridian — Multimodal Video Intelligence
-      </footer>
-    </main>
-  );
-}
+      {/* ── HOW IT WORKS ─────────────────────────────────────── */}
+      <section className="px-6 py-20">
+        <div className="max-w-2xl mx-auto">
+          <p className="text-xs font-bold uppercase tracking-widest text-slate-600 text-center mb-3">Simple by design</p>
+          <p className="text-2xl font-semibold text-slate-100 text-center mb-14">Up and running in minutes</p>
 
-function ModalityCard({
-  icon, label, description, bg, border,
-}: {
-  icon: string; label: string; description: string; bg: string; border: string;
-}) {
-  return (
-    <div
-      className="rounded-2xl p-5 text-left"
-      style={{ background: bg, border: `1px solid ${border}` }}
-    >
-      <div className="text-3xl mb-3">{icon}</div>
-      <p className="font-semibold text-base text-slate-100 mb-2">{label}</p>
-      <p className="text-sm text-slate-400 leading-relaxed">{description}</p>
-    </div>
+          <div className="space-y-3">
+            {[
+              {
+                step: "01",
+                icon: "⬆️",
+                title: "Upload your video",
+                body: "Drop any MP4, MOV, or WebM. Meridian starts working immediately in the background.",
+              },
+              {
+                step: "02",
+                icon: "⚡",
+                title: "Instant indexing",
+                body: "Audio, on-screen text, and visual scenes are all processed in parallel — every second becomes searchable.",
+              },
+              {
+                step: "03",
+                icon: "💬",
+                title: "Ask anything",
+                body: "Type a question in plain English. Get a precise answer with a timestamp you can jump to instantly.",
+              },
+            ].map(({ step, icon, title, body }) => (
+              <div key={step} className="glass-card p-6 flex gap-5 items-start">
+                <div className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-xl"
+                  style={{ background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.22)" }}>
+                  {icon}
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-1">
+                    <span className="font-mono text-xs font-bold text-indigo-500">{step}</span>
+                    <p className="font-semibold text-base text-slate-100">{title}</p>
+                  </div>
+                  <p className="text-sm text-slate-400 leading-relaxed">{body}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── BOTTOM CTA ───────────────────────────────────────── */}
+      <section className="px-6 py-24 text-center">
+        <div className="max-w-lg mx-auto">
+          <p className="text-3xl font-bold text-slate-100 mb-4">
+            Stop scrubbing.<br />
+            <span className="gradient-text">Start asking.</span>
+          </p>
+          <p className="text-slate-500 mb-8">Free to get started. No credit card required.</p>
+          <Link href="/register" className="btn-primary text-base px-10 py-3.5">
+            Try Meridian free
+          </Link>
+        </div>
+      </section>
+
+      {/* ── FOOTER ───────────────────────────────────────────── */}
+      <footer className="text-center py-8 text-sm text-slate-700" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+        © 2025 Meridian · Multimodal Video Intelligence
+      </footer>
+
+    </main>
   );
 }
