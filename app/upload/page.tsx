@@ -20,7 +20,7 @@ export default async function UploadPage() {
             Upload a video
           </h1>
           <p className="text-base text-slate-400 max-w-sm mx-auto leading-relaxed">
-            Meridian will index speech, on-screen text, and visual context —
+            Meridian indexes speech, on-screen text, and visual context,
             making every second searchable.
           </p>
         </div>

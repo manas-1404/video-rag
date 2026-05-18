@@ -82,7 +82,7 @@ function LiveStatus({ steps, synthesizing }: { steps: AgentStep[]; synthesizing:
         style={{ background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.18)" }}>
         <WaveformSpinner />
         <span className="text-sm text-indigo-300 font-medium">{meta.icon} {meta.label}</span>
-        <span className="text-sm text-slate-500">—</span>
+        <span className="text-sm text-slate-500">·</span>
         <span className="text-sm text-slate-400 italic truncate max-w-[200px]">&ldquo;{last.query}&rdquo;</span>
       </div>
     );
@@ -94,7 +94,7 @@ function LiveStatus({ steps, synthesizing }: { steps: AgentStep[]; synthesizing:
       <span className="text-emerald-400 text-base">✓</span>
       <span className="text-sm text-slate-300">{meta.icon} Found {last.count} result{last.count !== 1 ? "s" : ""}</span>
       {last.count > 0 && (
-        <span className="text-sm text-slate-500 italic truncate max-w-[220px]">— &ldquo;{last.snippet}&rdquo;</span>
+        <span className="text-sm text-slate-500 italic truncate max-w-[220px]">&ldquo;{last.snippet}&rdquo;</span>
       )}
     </div>
   );

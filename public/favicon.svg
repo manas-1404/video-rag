@@ -1,0 +1,26 @@
+<svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#4338ca"/>
+      <stop offset="100%" stop-color="#0e7490"/>
+    </linearGradient>
+    <radialGradient id="ping" cx="61%" cy="25%" r="25%">
+      <stop offset="0%" stop-color="white" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="white" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="clip">
+      <rect width="36" height="36" rx="10"/>
+    </clipPath>
+  </defs>
+  <rect width="36" height="36" rx="10" fill="url(#bg)"/>
+  <g clip-path="url(#clip)">
+    <path d="M 6,11 A 7,7 0 0,1 6,25"   stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.28"/>
+    <path d="M 6,5 A 13,13 0 0,1 6,31"  stroke="white" stroke-width="2"   stroke-linecap="round" opacity="0.50"/>
+    <path d="M 6,-1 A 19,19 0 0,1 6,37" stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.72"/>
+    <circle cx="22" cy="9" r="6"    fill="url(#ping)"/>
+    <circle cx="22" cy="9" r="3.5"  fill="white" opacity="0.18"/>
+    <circle cx="22" cy="9" r="2.25" fill="white" opacity="0.55"/>
+    <circle cx="22" cy="9" r="1.5"  fill="white"/>
+    <path d="M 4,15.5 L 4,20.5 L 9,18 Z" fill="white" opacity="0.90"/>
+  </g>
+</svg>

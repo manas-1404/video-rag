@@ -40,7 +40,7 @@ function StepRow({ step, isLast }: { step: AgentStep; isLast: boolean }) {
         {step.type === "tool_call" ? (
           <p className="text-sm">
             <span className="text-slate-300 font-medium">{meta.label}</span>
-            <span className="text-slate-500"> — searching for </span>
+            <span className="text-slate-500"> searching for </span>
             <span className="text-indigo-300 italic">&ldquo;{step.query}&rdquo;</span>
           </p>
         ) : step.count === 0 ? (

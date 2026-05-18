@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import Link from "next/link";
+import MeridianMark from "@/components/meridian-mark";
 
 export default async function Home() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -21,16 +22,7 @@ export default async function Home() {
 
         {/* Brand */}
         <div className="fade-up fade-up-1 flex items-center gap-3 mb-10">
-          <div className="logo-mark w-11 h-11">
-            <svg width="22" height="22" viewBox="0 0 16 16" fill="none">
-              <circle cx="8" cy="8" r="3" fill="white" opacity="0.9" />
-              <circle cx="8" cy="8" r="6.5" stroke="white" strokeWidth="1" opacity="0.4" />
-              <line x1="8" y1="1.5" x2="8" y2="3" stroke="white" strokeWidth="1.2" opacity="0.7" />
-              <line x1="8" y1="13" x2="8" y2="14.5" stroke="white" strokeWidth="1.2" opacity="0.7" />
-              <line x1="1.5" y1="8" x2="3" y2="8" stroke="white" strokeWidth="1.2" opacity="0.7" />
-              <line x1="13" y1="8" x2="14.5" y2="8" stroke="white" strokeWidth="1.2" opacity="0.7" />
-            </svg>
-          </div>
+          <MeridianMark size={44} />
           <span className="text-3xl font-bold tracking-tight gradient-text">Meridian</span>
         </div>
 
@@ -43,7 +35,7 @@ export default async function Home() {
 
         {/* Sub */}
         <p className="fade-up fade-up-3 text-lg text-slate-400 max-w-md leading-relaxed mb-10">
-          Ask any question. Meridian finds the exact moment — from what was said,
+          Ask any question. Meridian finds the exact moment from what was said,
           what was on screen, and what was happening visually.
         </p>
 
@@ -65,7 +57,7 @@ export default async function Home() {
             <div className="w-2.5 h-2.5 rounded-full" style={{ background: "rgba(255,255,255,0.15)" }} />
             <div className="w-2.5 h-2.5 rounded-full" style={{ background: "rgba(255,255,255,0.15)" }} />
             <div className="w-2.5 h-2.5 rounded-full" style={{ background: "rgba(255,255,255,0.15)" }} />
-            <span className="ml-3 text-xs text-slate-600 font-mono">meridian — product-demo.mp4</span>
+            <span className="ml-3 text-xs text-slate-600 font-mono">meridian · product-demo.mp4</span>
           </div>
 
           <div className="flex" style={{ minHeight: "260px" }}>
@@ -105,7 +97,7 @@ export default async function Home() {
                 </div>
                 {/* AI bubble */}
                 <div className="bubble-ai text-xs px-3 py-2.5 leading-relaxed text-slate-300">
-                  The four key stages are: <span className="text-slate-100 font-medium">Input Processing, Embedding, Retrieval,</span> and <span className="text-slate-100 font-medium">Generation</span> — introduced at 2:14 in the slides.
+                  The four key stages are: <span className="text-slate-100 font-medium">Input Processing, Embedding, Retrieval,</span> and <span className="text-slate-100 font-medium">Generation</span>, introduced at 2:14 in the slides.
                 </div>
                 {/* Timestamp */}
                 <span className="timestamp-badge text-xs">▶ Jump to 2:14</span>
@@ -196,7 +188,7 @@ export default async function Home() {
                 step: "02",
                 icon: "⚡",
                 title: "Instant indexing",
-                body: "Audio, on-screen text, and visual scenes are all processed in parallel — every second becomes searchable.",
+                body: "Audio, on-screen text, and visual scenes are all processed in parallel. Every second becomes searchable.",
               },
               {
                 step: "03",
