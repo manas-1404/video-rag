@@ -261,6 +261,7 @@ Current question: "${question}"`,
             contents: messages,
             config: {
               tools: TOOLS,
+              temperature: 0,
               thinkingConfig: { thinkingBudget: 512 },
             },
           });
@@ -297,7 +298,7 @@ RULES:
               ? await genAI.models.generateContent({
                   model: "gemini-2.5-pro",
                   contents: synthesisMessages,
-                  config: { thinkingConfig: { thinkingBudget: 2048 } },
+                  config: { temperature: 0, thinkingConfig: { thinkingBudget: 2048 } },
                 })
               : response;
 
@@ -379,7 +380,7 @@ RULES:
             const forcedResponse = await genAI.models.generateContent({
               model: "gemini-2.5-pro",
               contents: forcedMessages,
-              config: { thinkingConfig: { thinkingBudget: 1024 } },
+              config: { temperature: 0, thinkingConfig: { thinkingBudget: 1024 } },
             });
             emitAnswer(emit, forcedResponse.text?.trim() ?? "", allResults);
           } else {
