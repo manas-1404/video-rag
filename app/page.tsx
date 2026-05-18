@@ -91,7 +91,7 @@ export default async function Home() {
             {
               step: "02",
               title: "Parallel indexing",
-              body: "Speech is transcribed, frames are OCR'd, and scenes are described — all stored as vector embeddings.",
+              body: "Meridian listens to the audio, reads every word on screen, and understands what's visually happening — all at once. Every second of your video becomes searchable.",
             },
             {
               step: "03",
