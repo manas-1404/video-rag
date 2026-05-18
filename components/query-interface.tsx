@@ -51,7 +51,7 @@ function WaveformSpinner() {
   );
 }
 
-function LiveStatus({ steps }: { steps: AgentStep[] }) {
+function LiveStatus({ steps, loading }: { steps: AgentStep[]; loading: boolean }) {
   if (steps.length === 0) {
     return (
       <div className="flex items-center gap-3 px-4 py-3 rounded-xl"
@@ -77,13 +77,25 @@ function LiveStatus({ steps }: { steps: AgentStep[] }) {
     );
   }
 
+  // last is tool_result — show what was found, then if still loading show synthesis phase
   return (
-    <div className="flex items-center gap-3 px-4 py-3 rounded-xl"
-      style={{ background: "rgba(52,211,153,0.07)", border: "1px solid rgba(52,211,153,0.18)" }}>
-      <span className="text-emerald-400 text-base">✓</span>
-      <span className="text-sm text-slate-300">{meta.icon} Found {last.count} result{last.count !== 1 ? "s" : ""}</span>
-      {last.count > 0 && (
-        <span className="text-sm text-slate-500 italic truncate max-w-[220px]">— &ldquo;{last.snippet}&rdquo;</span>
+    <div className="space-y-2">
+      <div className="flex items-center gap-3 px-4 py-3 rounded-xl"
+        style={{ background: "rgba(52,211,153,0.07)", border: "1px solid rgba(52,211,153,0.18)" }}>
+        <span className="text-emerald-400 text-base">✓</span>
+        <span className="text-sm text-slate-300">{meta.icon} Found {last.count} result{last.count !== 1 ? "s" : ""}</span>
+        {last.count > 0 && (
+          <span className="text-sm text-slate-500 italic truncate max-w-[220px]">— &ldquo;{last.snippet}&rdquo;</span>
+        )}
+      </div>
+
+      {/* After the last tool result there are still 1–2 Gemini calls before the answer arrives */}
+      {loading && (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl"
+          style={{ background: "rgba(168,85,247,0.07)", border: "1px solid rgba(168,85,247,0.2)" }}>
+          <WaveformSpinner />
+          <span className="text-sm text-violet-300">Synthesizing answer…</span>
+        </div>
       )}
     </div>
   );
@@ -294,7 +306,7 @@ export default function QueryInterface({ videoId, videoUrl, title }: Props) {
 
             {loading && (
               <div className="py-1">
-                <LiveStatus steps={liveSteps} />
+                <LiveStatus steps={liveSteps} loading={loading} />
               </div>
             )}
             <div ref={chatBottomRef} />
