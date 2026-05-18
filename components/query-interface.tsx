@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import Link from "next/link";
+import ReactMarkdown from "react-markdown";
 import VideoPlayer from "./video-player";
 import ReferenceCards from "./reference-cards";
 import AgentTrace, { type AgentStep } from "./agent-trace";
@@ -284,8 +285,8 @@ export default function QueryInterface({ videoId, videoUrl, title }: Props) {
                   </div>
                 ) : (
                   <div className="space-y-2.5">
-                    <div className="bubble-ai text-sm px-4 py-3.5 leading-relaxed max-w-[96%] text-slate-200">
-                      {msg.content}
+                    <div className="bubble-ai text-sm px-4 py-3.5 leading-relaxed max-w-[96%] text-slate-200 prose prose-invert prose-sm max-w-none">
+                      <ReactMarkdown>{msg.content}</ReactMarkdown>
                     </div>
                     {msg.result.primaryTimestampMs > 0 && (
                       <button onClick={() => handleSeek(msg.result.primaryTimestampMs)} className="timestamp-badge ml-1">
