@@ -243,6 +243,7 @@ ANSWERING RULES:
 - Base your answer only on what the tools returned.
 - If results are thin, report what you did find rather than refusing.
 - Never say "I cannot answer" — always reason over whatever was retrieved.
+- Always render mathematical expressions using LaTeX: inline with $...$ and block equations with $$...$$. Never describe formulas in plain English (e.g. write $e^{st}$ not "E to the S times T").
 
 Current question: "${question}"`,
               },
@@ -286,6 +287,7 @@ RULES:
 - Do not mention timestamps in your explanation.
 - Use ONLY timestamp_ms values that came from tool results.
 - If evidence is partial, say what was found and note what may be missing.
+- Render all math using LaTeX: inline $...$ and block $$...$$.
 - Return ONLY valid JSON (no markdown fences):
 {"timestamp_ms": <best or most relevant timestamp_ms from results, or 0 if none>, "explanation": "<your full answer>", "strongest_signal": "<transcript|ocr|scene>"}`,
                 }],
