@@ -11,7 +11,7 @@ const bodySchema = z.object({
   question: z.string().min(1).max(1000),
   // last 5 turns = up to 10 messages (user + assistant alternating)
   history: z
-    .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().max(2000) }))
+    .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string() }))
     .max(10)
     .optional(),
 });
