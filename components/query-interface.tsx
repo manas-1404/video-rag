@@ -109,6 +109,12 @@ export default function QueryInterface({ videoId, videoUrl, title }: Props) {
     const q = question.trim();
     if (!q || loading) return;
 
+    // Snapshot the last 5 turns (10 messages) BEFORE appending the new question
+    const historySnapshot = messages.slice(-10).map((m) => ({
+      role: m.role,
+      content: m.role === "user" ? m.content : (m as Extract<Message, { role: "assistant" }>).result.explanation || m.content,
+    }));
+
     setMessages((prev) => [...prev, { role: "user", content: q }]);
     setQuestion("");
     setLoading(true);
@@ -118,7 +124,7 @@ export default function QueryInterface({ videoId, videoUrl, title }: Props) {
       const res = await fetch("/api/query", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ videoId, question: q }),
+        body: JSON.stringify({ videoId, question: q, history: historySnapshot }),
       });
 
       if (!res.ok || !res.body) {

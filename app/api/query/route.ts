@@ -43,6 +43,11 @@ const pinecone = new Pinecone({ apiKey: process.env.PINECONE_API_KEY });
 const bodySchema = z.object({
   videoId: z.string().uuid(),
   question: z.string().min(1).max(1000),
+  // last 5 turns = up to 10 messages (user + assistant alternating)
+  history: z
+    .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().max(2000) }))
+    .max(10)
+    .optional(),
 });
 
 const TOOLS = [
@@ -176,7 +181,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid request" }, { status: 400 });
   }
 
-  const { videoId, question } = parsed.data;
+  const { videoId, question, history } = parsed.data;
 
   const [video] = await db
     .select({ id: videos.id, status: videos.status })
@@ -195,6 +200,13 @@ export async function POST(request: Request) {
       };
 
       try {
+        const conversationContext =
+          history && history.length > 0
+            ? `\n\nPrevious conversation (for resolving references like "that", "it", "before that"):\n${history
+                .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
+                .join("\n")}\n`
+            : "";
+
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let messages: any[] = [
           {
@@ -211,8 +223,8 @@ STRICT RULES:
 - Never reference a time (e.g. "0:01:19") unless that exact value came from a tool result.
 - Base your answer only on what the tools returned. Do not use prior knowledge.
 - Never refuse to answer — always search first, then reason over results.
-
-Question: "${question}"`,
+${conversationContext}
+Current question: "${question}"`,
               },
             ],
           },
