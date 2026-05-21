@@ -19,14 +19,14 @@ from lib.inngest_client import client
 from lib.gemini_client import analyze_frame, embed_text
 from lib.pinecone_client import get_index
 
-BATCH_SIZE = 4
-_GEMINI_WORKERS = 1  # 1 vCPU budget for visual; Whisper owns the other via cpu_threads=1
+BATCH_SIZE = 10
 
 
 @client.create_function(
     fn_id="process-visual",
     trigger=inngest.TriggerEvent(event="extraction/complete"),
     retries=3,
+    concurrency=[inngest.Concurrency(limit=1)],
 )
 async def process_visual(ctx: inngest.Context) -> None:
     video_id: str = ctx.event.data["videoId"]
@@ -74,7 +74,7 @@ def _process_batch(video_id: str, frames: list[dict]):
                 os.remove(local_path)
 
     raw_results: list[tuple[list[int], list[str], str]] = []
-    with ThreadPoolExecutor(max_workers=_GEMINI_WORKERS) as executor:
+    with ThreadPoolExecutor(max_workers=BATCH_SIZE) as executor:
         futures = {executor.submit(analyze, frame): frame for frame in frames}
         for future in as_completed(futures):
             raw_results.append(future.result())

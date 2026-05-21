@@ -31,7 +31,7 @@ def analyze_frame(image_path: str) -> dict:
     mime = "image/jpeg" if ext in (".jpg", ".jpeg") else "image/png"
 
     response = _client.models.generate_content(
-        model="gemini-3-flash-preview",
+        model="gemini-2.5-flash",
         contents=[
             types.Part.from_bytes(data=image_bytes, mime_type=mime),
             FRAME_ANALYSIS_PROMPT,

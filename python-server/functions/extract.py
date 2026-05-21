@@ -24,6 +24,7 @@ PHASH_SKIP_THRESHOLD = 8
 @client.create_function(
     fn_id="extract-frames-and-audio",
     trigger=inngest.TriggerEvent(event="video/uploaded"),
+    concurrency=[inngest.Concurrency(limit=1)],
 )
 async def extract_frames_and_audio(ctx: inngest.Context) -> None:
     video_id: str = ctx.event.data["videoId"]
