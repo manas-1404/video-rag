@@ -330,7 +330,7 @@ export default function QueryInterface({ videoId, videoUrl, title }: Props) {
                 ) : (
                   <div className="space-y-2.5">
                     <div className="bubble-ai text-sm px-4 py-3.5 leading-relaxed max-w-[96%] text-slate-200 prose prose-invert prose-sm max-w-none">
-                      <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{msg.content}</ReactMarkdown>
+                      <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{msg.content || "I couldn't find relevant information in the video for that question. Try rephrasing or asking about a specific moment."}</ReactMarkdown>
                     </div>
                     {msg.result.primaryTimestampMs > 0 && (
                       <button onClick={() => handleSeek(msg.result.primaryTimestampMs)} className="timestamp-badge ml-1">
