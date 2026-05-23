@@ -109,6 +109,7 @@ export default function QueryInterface({ videoId, videoUrl, title }: Props) {
   const [loading, setLoading] = useState(false);
   const [liveSteps, setLiveSteps] = useState<AgentStep[]>([]);
   const [synthesizing, setSynthesizing] = useState(false);
+  const [streamingContent, setStreamingContent] = useState("");
   const [seekTo, setSeekTo] = useState<number | null>(null);
   const [suggested, setSuggested] = useState<string[]>(SUGGESTED_FALLBACK);
   const [suggestionsLoading, setSuggestionsLoading] = useState(true);
@@ -119,7 +120,7 @@ export default function QueryInterface({ videoId, videoUrl, title }: Props) {
 
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading]);
+  }, [messages, loading, streamingContent]);
 
   useEffect(() => {
     fetch(`/api/suggestions?videoId=${videoId}`)
@@ -190,6 +191,10 @@ export default function QueryInterface({ videoId, videoUrl, title }: Props) {
 
           if (event.type === "synthesizing") {
             setSynthesizing(true);
+            setStreamingContent("");
+          } else if (event.type === "chunk") {
+            setSynthesizing(false);
+            setStreamingContent((prev) => prev + (event.text as string));
           } else if (event.type === "tool_call") {
             setSynthesizing(false);
             const step: AgentStep = { type: "tool_call", tool: event.tool as string, query: event.query as string };
@@ -202,6 +207,7 @@ export default function QueryInterface({ videoId, videoUrl, title }: Props) {
           } else if (event.type === "answer") {
             const result = event as unknown as QueryResult & { type: string };
             setSynthesizing(false);
+            setStreamingContent("");
             setMessages((prev) => [...prev, {
               role: "assistant",
               content: result.explanation,
@@ -233,6 +239,7 @@ export default function QueryInterface({ videoId, videoUrl, title }: Props) {
       setLoading(false);
       setLiveSteps([]);
       setSynthesizing(false);
+      setStreamingContent("");
       inputRef.current?.focus();
     }
   }
@@ -343,7 +350,15 @@ export default function QueryInterface({ videoId, videoUrl, title }: Props) {
               </div>
             ))}
 
-            {loading && (
+            {streamingContent && (
+              <div className="flex flex-col gap-2">
+                <div className="bubble-ai text-sm px-4 py-3.5 leading-relaxed max-w-[96%] text-slate-200 prose prose-invert prose-sm max-w-none">
+                  <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{streamingContent}</ReactMarkdown>
+                </div>
+              </div>
+            )}
+
+            {loading && !streamingContent && (
               <div className="py-1">
                 <LiveStatus steps={liveSteps} synthesizing={synthesizing} />
               </div>

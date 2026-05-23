@@ -278,38 +278,68 @@ Current question: "${question}"`,
 
           if (functionCalls.length === 0) {
             // Model decided to stop searching — synthesize
-            const synthesisMessages = allResults.length > 0 ? [
-              ...messages,
-              {
-                role: "user",
-                parts: [{
-                  text: `You have finished searching. Now synthesize a final answer using ONLY the tool results above.
+            emit({ type: "synthesizing" });
+
+            if (allResults.length > 0) {
+              const synthesisMessages = [
+                ...messages,
+                {
+                  role: "user",
+                  parts: [{
+                    text: `You have finished searching. Now synthesize a final answer using ONLY the tool results above.
 
 RULES:
 - Reason over ALL retrieved results, not just the first one.
 - For list/summary questions, compile every relevant item found across all searches.
 - Do not mention timestamps in your explanation.
-- Use ONLY timestamp_ms values that came from tool results.
 - If evidence is partial, say what was found and note what may be missing.
 - Render all math using LaTeX: inline $...$ and block $$...$$.
-- Return ONLY valid JSON (no markdown fences):
-{"timestamp_ms": <best or most relevant timestamp_ms from results, or 0 if none>, "explanation": "<your full answer>", "strongest_signal": "<transcript|ocr|scene>"}`,
-                }],
-              },
-            ] : messages;
+- Write your answer as plain prose. Do NOT wrap it in JSON or code fences.`,
+                  }],
+                },
+              ];
 
-            emit({ type: "synthesizing" });
+              let accumulatedText = "";
+              const stream = await genAI.models.generateContentStream({
+                model: "gemini-2.5-pro",
+                contents: synthesisMessages,
+                config: { temperature: 0, thinkingConfig: { thinkingBudget: 2048 } },
+              });
+              for await (const chunk of stream) {
+                const text = chunk.text ?? "";
+                if (text) {
+                  accumulatedText += text;
+                  emit({ type: "chunk", text });
+                }
+              }
 
-            const synthesisResponse = allResults.length > 0
-              ? await genAI.models.generateContent({
-                  model: "gemini-2.5-pro",
-                  contents: synthesisMessages,
-                  config: { temperature: 0, thinkingConfig: { thinkingBudget: 2048 } },
-                })
-              : response;
+              const explanation = accumulatedText.trim() || "I couldn't find relevant information in the video for that question. Try rephrasing or asking about a specific moment.";
+              const candidates = allResults.slice(0, 5).map((r, i) => ({
+                transcriptText: r.source === "transcript" ? r.text : "",
+                startMs: r.timestampMs,
+                endMs: r.timestampMs,
+                ocrText: r.source === "ocr" ? r.text.split(" | ") : [],
+                sceneDescription: r.source === "scene" ? r.text : "",
+                strongestSignal: r.source,
+                isBest: i === 0,
+              }));
+
+              emit({
+                type: "answer",
+                primaryTimestampMs: allResults[0]?.timestampMs ?? 0,
+                explanation,
+                candidates,
+              });
+            } else {
+              emit({
+                type: "answer",
+                primaryTimestampMs: 0,
+                explanation: "I searched the video across speech, on-screen text, and visual context but couldn't find relevant information to answer your question. Try rephrasing or asking about a more specific moment.",
+                candidates: [],
+              });
+            }
 
             answered = true;
-            emitAnswer(emit, synthesisResponse.text?.trim() ?? "", allResults);
             break;
           }
 
