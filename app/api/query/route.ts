@@ -153,9 +153,13 @@ function emitAnswer(
     const best = allResults[0];
     answerJson = {
       timestamp_ms: best?.timestampMs ?? 0,
-      explanation: rawText || "I searched the video but couldn't produce a clear answer. Try rephrasing your question.",
+      explanation: rawText || "I couldn't find relevant information in the video for that question. Try rephrasing or asking about a specific moment.",
       strongest_signal: best?.source ?? "transcript",
     };
+  }
+
+  if (!answerJson.explanation) {
+    answerJson.explanation = "I couldn't find relevant information in the video for that question. Try rephrasing or asking about a specific moment.";
   }
 
   const candidates = allResults.slice(0, 5).map((r, i) => ({
