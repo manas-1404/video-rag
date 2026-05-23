@@ -4,7 +4,7 @@ import { videos } from "@/lib/db/schema";
 import { s3, BUCKET_NAME } from "@/lib/s3";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or } from "drizzle-orm";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import QueryInterface from "@/components/query-interface";
@@ -27,7 +27,7 @@ export default async function VideoPage({
       blobUrl: videos.blobUrl,
     })
     .from(videos)
-    .where(and(eq(videos.id, id), eq(videos.userId, session.user.id)));
+    .where(and(eq(videos.id, id), or(eq(videos.userId, session.user.id), eq(videos.isDemo, true))));
 
   if (!video) notFound();
   if (video.status !== "READY") redirect("/upload");

@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { videos } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or } from "drizzle-orm";
 import { genAI, pinecone } from "@/lib/genai";
 
 export async function GET(request: Request) {
@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   const [video] = await db
     .select({ id: videos.id, title: videos.title, status: videos.status })
     .from(videos)
-    .where(and(eq(videos.id, videoId), eq(videos.userId, session.user.id)));
+    .where(and(eq(videos.id, videoId), or(eq(videos.userId, session.user.id), eq(videos.isDemo, true))));
 
   if (!video) return Response.json({ error: "Not found" }, { status: 404 });
   if (video.status !== "READY") return Response.json({ suggestions: [] });

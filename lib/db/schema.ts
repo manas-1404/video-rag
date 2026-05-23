@@ -80,6 +80,7 @@ export const videos = pgTable("videos", {
   audioUrl: text("audio_url"),
   durationSeconds: integer("duration_seconds"),
   errorMessage: text("error_message"),
+  isDemo: boolean("is_demo").default(false).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });

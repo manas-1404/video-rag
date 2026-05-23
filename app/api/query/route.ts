@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { videos, ocrFrames } from "@/lib/db/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, or, sql } from "drizzle-orm";
 import { Type } from "@google/genai";
 import { z } from "zod";
 import { genAI, pinecone } from "@/lib/genai";
@@ -193,7 +193,7 @@ export async function POST(request: Request) {
   const [video] = await db
     .select({ id: videos.id, status: videos.status })
     .from(videos)
-    .where(and(eq(videos.id, videoId), eq(videos.userId, session.user.id)));
+    .where(and(eq(videos.id, videoId), or(eq(videos.userId, session.user.id), eq(videos.isDemo, true))));
 
   if (!video) return Response.json({ error: "Not found" }, { status: 404 });
   if (video.status !== "READY") return Response.json({ error: "Video not ready" }, { status: 409 });

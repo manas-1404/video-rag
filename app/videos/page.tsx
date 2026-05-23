@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { videos } from "@/lib/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, or } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -23,8 +23,8 @@ export default async function VideosPage() {
   const userVideos = await db
     .select()
     .from(videos)
-    .where(eq(videos.userId, session.user.id))
-    .orderBy(desc(videos.createdAt));
+    .where(or(eq(videos.userId, session.user.id), eq(videos.isDemo, true)))
+    .orderBy(desc(videos.isDemo), desc(videos.createdAt));
 
   return (
     <div className="flex-1 px-4 py-12 max-w-4xl mx-auto w-full">
@@ -106,6 +106,12 @@ function VideoRow({ video }: { video: Video }) {
 
       {/* Status */}
       <div className="flex items-center gap-3 shrink-0">
+        {video.isDemo && (
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
+            style={{ background: "rgba(99,102,241,0.15)", color: "#a5b4fc", border: "1px solid rgba(99,102,241,0.3)" }}>
+            Demo
+          </span>
+        )}
         {config.showSpinner && (
           <div className="w-4 h-4 border-2 border-indigo-400/30 border-t-indigo-400 rounded-full animate-spin" />
         )}
