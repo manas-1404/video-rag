@@ -352,8 +352,8 @@ export default function QueryInterface({ videoId, videoUrl, title }: Props) {
 
             {streamingContent && (
               <div className="flex flex-col gap-2">
-                <div className="bubble-ai text-sm px-4 py-3.5 leading-relaxed max-w-[96%] text-slate-200 prose prose-invert prose-sm max-w-none">
-                  <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{streamingContent}</ReactMarkdown>
+                <div className="bubble-ai text-sm px-4 py-3.5 leading-relaxed max-w-[96%] text-slate-200 whitespace-pre-wrap">
+                  {streamingContent}
                 </div>
               </div>
             )}
