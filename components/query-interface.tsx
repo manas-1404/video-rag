@@ -138,12 +138,12 @@ export default function QueryInterface({ videoId, videoUrl, title }: Props) {
     const q = question.trim();
     if (!q || loading) return;
 
-    // Snapshot the last 5 turns (10 messages) BEFORE appending the new question
-    const historySnapshot = messages.slice(-10).map((m) => {
+    // Snapshot the last 3 turns (6 messages) BEFORE appending the new question
+    const historySnapshot = messages.slice(-6).map((m) => {
       const content = m.role === "user"
         ? m.content
         : (m as Extract<Message, { role: "assistant" }>).result.explanation || m.content;
-      return { role: m.role, content: content.slice(0, 2000) };
+      return { role: m.role, content: content.slice(0, 1000) };
     });
 
     setMessages((prev) => [...prev, { role: "user", content: q }]);

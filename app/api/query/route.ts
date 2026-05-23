@@ -87,7 +87,7 @@ async function searchTranscript(query: string, videoId: string): Promise<ToolRes
   const index = pinecone.index(process.env.PINECONE_INDEX_NAME!);
   const result = await index.query({
     vector,
-    topK: 3,
+    topK: 5,
     filter: { video_id: { $eq: videoId } },
     includeMetadata: true,
     namespace: "transcript",
@@ -123,7 +123,7 @@ async function searchScene(query: string, videoId: string): Promise<ToolResult[]
   const index = pinecone.index(process.env.PINECONE_INDEX_NAME!);
   const result = await index.query({
     vector,
-    topK: 3,
+    topK: 5,
     filter: { video_id: { $eq: videoId } },
     includeMetadata: true,
     namespace: "scenes",
@@ -274,7 +274,7 @@ Current question: "${question}"`,
           const candidate = response.candidates?.[0];
           if (!candidate || !candidate.content) break;
 
-          const functionCalls = candidate.content.parts?.filter((p: { functionCall?: unknown }) => p.functionCall) ?? [];
+          const functionCalls = response.functionCalls ?? [];
 
           if (functionCalls.length === 0) {
             // Model decided to stop searching — synthesize
@@ -313,35 +313,39 @@ RULES:
             break;
           }
 
-          // Execute all function calls in this iteration
-          const toolResponseParts = [];
+          // Execute all function calls in this iteration in parallel
+          const toolCalls = functionCalls.map((call) => ({
+            toolName: call.name ?? "",
+            query: (call.args?.query as string) ?? question,
+          }));
 
-          for (const part of functionCalls) {
-            const call = part.functionCall as { name: string; args: { query: string } };
-            const toolName = call.name;
-            const query = call.args?.query ?? question;
-
+          toolCalls.forEach(({ toolName, query }) => {
             emit({ type: "tool_call", tool: toolName, query });
+          });
 
-            let results: ToolResult[] = [];
-            try {
-              if (toolName === "search_transcript") {
-                results = await searchTranscript(query, videoId);
-              } else if (toolName === "search_ocr") {
-                results = await searchOcr(query, videoId);
-              } else if (toolName === "search_scene") {
-                results = await searchScene(query, videoId);
+          const toolResults = await Promise.all(
+            toolCalls.map(async ({ toolName, query }) => {
+              let results: ToolResult[] = [];
+              try {
+                if (toolName === "search_transcript") {
+                  results = await searchTranscript(query, videoId);
+                } else if (toolName === "search_ocr") {
+                  results = await searchOcr(query, videoId);
+                } else if (toolName === "search_scene") {
+                  results = await searchScene(query, videoId);
+                }
+              } catch {
+                results = [];
               }
-            } catch {
-              results = [];
-            }
+              return { toolName, query, results };
+            })
+          );
 
+          const toolResponseParts = toolResults.map(({ toolName, results }) => {
             allResults.push(...results);
-
             const snippet = results[0]?.text?.slice(0, 120) ?? "(no results)";
             emit({ type: "tool_result", tool: toolName, count: results.length, snippet });
-
-            toolResponseParts.push({
+            return {
               functionResponse: {
                 name: toolName,
                 response: {
@@ -351,8 +355,8 @@ RULES:
                   })),
                 },
               },
-            });
-          }
+            };
+          });
 
           messages = [
             ...messages,
