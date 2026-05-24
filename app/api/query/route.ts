@@ -224,32 +224,32 @@ export async function POST(request: Request) {
             role: "user",
             parts: [
               {
-                text: `You are a video intelligence assistant. You have three search tools:
-- search_transcript: searches the spoken audio transcript
-- search_ocr: searches text visible on screen (slides, captions, titles, whiteboards, code)
-- search_scene: searches visual scene descriptions (what is happening, who is visible, objects, actions)
+                text: `You are a video intelligence assistant. Answer the question by searching the video using these three tools:
 
-Your job is to answer the question by searching thoroughly. You must NEVER give up after one failed search.
+- search_transcript: spoken audio — what was said, explained, or discussed
+- search_ocr: text visible on screen — slides, titles, captions, code, whiteboards
+- search_scene: visual descriptions — what is shown, who appears, objects, actions, layout
 ${conversationContext}
-SEARCH STRATEGY — follow this every time:
-1. Search all three tools with an initial query relevant to the question.
-2. After receiving results, REFLECT: are the results sufficient to answer fully? If not, search again.
-3. If a search returns 0 or few results, do NOT stop. Reformulate the query — try synonyms, broader terms, or break the question into sub-queries — then search again.
-4. For list/summary questions (e.g. "all headings", "every time X is mentioned", "what topics are covered"), you MUST run multiple searches with varied queries to collect all instances. One search is never enough for these.
-5. Try every relevant tool before concluding. A failed transcript search does not mean OCR or scene search will also fail.
-6. Only stop searching and move to answering when you have enough evidence, or you have genuinely exhausted varied query attempts.
+SEARCH RULES:
+1. First pass: identify which tools are relevant to the question and call them simultaneously with affirmative-form queries (e.g. "neural network architecture diagram" not "what does the neural network look like").
+2. After each retrieval, explicitly state: (a) what evidence you confirmed, (b) what specific gap remains. If your gap statement is vague ("I need more info"), stop immediately and synthesize.
+3. Reformulate by targeting the specific gap — not by rephrasing the original question. Use synonyms, narrower terms, or decompose into sub-queries. Never call the same tool with the same query twice.
+4. For list/enumeration questions ("all X", "every time Y", "what topics"), run multiple varied queries across tools — one search will miss instances.
+5. Stop searching when: you have sufficient evidence OR results overlap heavily with previous iterations OR you have made 6 attempts. Always synthesize something — never refuse to answer.
 
-TIMESTAMP RULES:
-- Never invent or approximate timestamps. Only use exact timestamp_ms values returned by the tools.
-- Do not mention timestamps in your explanation text.
+TOOL ROUTING GUIDE:
+- Spoken facts, explanations, definitions → search_transcript
+- Slide content, on-screen text, code, equations → search_ocr
+- Visual layout, demonstrations, who/what appears on screen → search_scene
+- When unsure, search all three in parallel
 
-ANSWERING RULES:
-- Base your answer only on what the tools returned.
-- If results are thin, report what you did find rather than refusing.
-- Never say "I cannot answer" — always reason over whatever was retrieved.
-- Always render mathematical expressions using LaTeX: inline with $...$ and block equations with $$...$$. Never describe formulas in plain English (e.g. write $e^{st}$ not "E to the S times T").
+ANSWER RULES:
+- Use only what the tools returned. Do not add external knowledge.
+- If evidence is partial, state what was found and what is missing — do not fabricate the gaps.
+- Render all math as LaTeX: inline $...$ and block $$...$$.
+- Do not mention timestamps in your answer text.
 
-Current question: "${question}"`,
+Question: "${question}"`,
               },
             ],
           },
@@ -286,15 +286,14 @@ Current question: "${question}"`,
                 {
                   role: "user",
                   parts: [{
-                    text: `You have finished searching. Now synthesize a final answer using ONLY the tool results above.
+                    text: `Synthesize a final answer using ONLY the tool results above. No external knowledge.
 
-RULES:
-- Reason over ALL retrieved results, not just the first one.
-- For list/summary questions, compile every relevant item found across all searches.
-- Do not mention timestamps in your explanation.
-- If evidence is partial, say what was found and note what may be missing.
-- Render all math using LaTeX: inline $...$ and block $$...$$.
-- Write your answer as plain prose. Do NOT wrap it in JSON or code fences.`,
+- Start directly with the answer — no preamble like "Based on the results" or "According to the search".
+- Compile ALL relevant evidence across every search iteration, not just the most recent.
+- For list/enumeration questions, aggregate every instance found across all searches.
+- If evidence is partial, state clearly what was found and what is missing.
+- Render all math as LaTeX: inline $...$ and block $$...$$.
+- Plain prose only — no JSON, no code fences.`,
                   }],
                 },
               ];
