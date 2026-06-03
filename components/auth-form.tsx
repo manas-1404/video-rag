@@ -22,13 +22,13 @@ export default function AuthForm({ mode }: Props) {
 
     try {
       if (mode === "register") {
-        const result = await authClient.signUp.email({ email, password, name, callbackURL: "/upload" });
+        const result = await authClient.signUp.email({ email, password, name, callbackURL: "/videos" });
         if (result.error) { setError(result.error.message ?? "Registration failed"); return; }
       } else {
-        const result = await authClient.signIn.email({ email, password, callbackURL: "/upload" });
+        const result = await authClient.signIn.email({ email, password, callbackURL: "/videos" });
         if (result.error) { setError(result.error.message ?? "Login failed"); return; }
       }
-      router.push("/upload");
+      router.push("/videos");
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
