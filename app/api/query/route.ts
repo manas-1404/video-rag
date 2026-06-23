@@ -262,7 +262,7 @@ Question: "${question}"`,
         // Raised from 3 to 6 — list/summary questions need multiple search rounds
         while (iterations < 6) {
           const response = await genAI.models.generateContent({
-            model: "gemini-2.5-pro",
+            model: "gemini-2.5-flash",
             contents: messages,
             config: {
               tools: TOOLS,
