@@ -267,7 +267,7 @@ Question: "${question}"`,
             config: {
               tools: TOOLS,
               temperature: 0,
-              thinkingConfig: { thinkingBudget: 512 },
+              thinkingConfig: { thinkingBudget: 0 },
             },
           });
 
