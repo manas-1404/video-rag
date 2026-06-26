@@ -220,7 +220,7 @@ async function getContentAt(timestampMs: number, windowMs: number, videoId: stri
       ? `At ${timestampMs}ms: "${pinpointWords}" | Context: "${chunk.text}"`
       : chunk.text;
 
-    results.push({ timestampMs: chunk.startMs, text, source: "transcript" });
+    results.push({ timestampMs, text, source: "transcript" });
   }
 
   // Scene descriptions within the window, closest first
