@@ -120,10 +120,10 @@ def insert_scene_frames_batch(video_id: str, frames: list[tuple[int, str]]):
             )
 
 
-def update_video_audio_url(video_id: str, audio_url: str):
+def update_video_audio_url(video_id: str, audio_url: str, duration_seconds: int | None = None):
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "UPDATE videos SET audio_url = %s, updated_at = NOW() WHERE id = %s",
-                (audio_url, video_id),
+                "UPDATE videos SET audio_url = %s, duration_seconds = %s, updated_at = NOW() WHERE id = %s",
+                (audio_url, duration_seconds, video_id),
             )

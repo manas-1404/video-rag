@@ -39,7 +39,7 @@ async def extract_frames_and_audio(ctx: inngest.Context) -> None:
 
     audio_path: str | None = None
     try:
-        audio_path, frame_paths = await ctx.step.run(
+        audio_path, frame_paths, duration_seconds = await ctx.step.run(
             "run-ffmpeg",
             lambda: _run_ffmpeg(video_path),
         )
@@ -49,7 +49,7 @@ async def extract_frames_and_audio(ctx: inngest.Context) -> None:
             lambda: storage.upload_file(audio_path, f"videos/{video_id}/audio.wav"),
         )
 
-        db.update_video_audio_url(video_id, audio_url)
+        db.update_video_audio_url(video_id, audio_url, duration_seconds)
 
         unique_frames: list[dict] = await ctx.step.run(
             "dedup-and-upload-frames",
@@ -80,8 +80,11 @@ async def extract_frames_and_audio(ctx: inngest.Context) -> None:
         _cleanup(video_path, audio_path)
 
 
-def _run_ffmpeg(video_path: str) -> tuple[str, list[str]]:
+def _run_ffmpeg(video_path: str) -> tuple[str, list[str], int]:
     import ffmpeg
+
+    probe = ffmpeg.probe(video_path)
+    duration_seconds = int(float(probe["format"]["duration"]))
 
     tmpdir = tempfile.mkdtemp()
     audio_path = os.path.join(tmpdir, "audio.wav")
@@ -105,7 +108,7 @@ def _run_ffmpeg(video_path: str) -> tuple[str, list[str]]:
     )
 
     frame_paths = sorted(glob.glob(os.path.join(tmpdir, "frame_*.jpg")))
-    return audio_path, frame_paths
+    return audio_path, frame_paths, duration_seconds
 
 
 def _dedup_and_upload_frames(video_id: str, frame_paths: list[str]) -> list[dict]:
