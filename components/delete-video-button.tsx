@@ -1,10 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export default function DeleteVideoButton({ videoId }: { videoId: string }) {
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   async function handleDelete(e: React.MouseEvent) {
@@ -21,7 +19,7 @@ export default function DeleteVideoButton({ videoId }: { videoId: string }) {
         alert(data.error ?? "Failed to delete video");
         return;
       }
-      router.refresh();
+      window.location.reload();
     } finally {
       setLoading(false);
     }

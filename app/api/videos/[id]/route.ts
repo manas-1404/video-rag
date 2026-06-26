@@ -23,44 +23,50 @@ export async function DELETE(
   if (!video) return Response.json({ error: "Not found" }, { status: 404 });
   if (video.isDemo) return Response.json({ error: "Demo videos cannot be deleted" }, { status: 403 });
 
-  const index = pinecone.index(process.env.PINECONE_INDEX_NAME!);
+  // Pinecone cleanup — non-fatal, don't block DB delete if this fails
+  try {
+    const index = pinecone.index(process.env.PINECONE_INDEX_NAME!);
 
-  // Transcript: delete by stored pineconeIds from DB
-  const chunks = await db
-    .select({ pineconeId: asrChunks.pineconeId })
-    .from(asrChunks)
-    .where(eq(asrChunks.videoId, videoId));
+    const chunks = await db
+      .select({ pineconeId: asrChunks.pineconeId })
+      .from(asrChunks)
+      .where(eq(asrChunks.videoId, videoId));
 
-  const transcriptIds = chunks.map((c) => c.pineconeId).filter(Boolean) as string[];
-  if (transcriptIds.length > 0) {
-    await index.namespace("transcript").deleteMany(transcriptIds);
+    const transcriptIds = chunks.map((c) => c.pineconeId).filter(Boolean) as string[];
+    if (transcriptIds.length > 0) {
+      await index.namespace("transcript").deleteMany(transcriptIds);
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (index.namespace("scenes").deleteMany as any)({ video_id: { $eq: videoId } });
+  } catch (err) {
+    console.error("[delete] Pinecone cleanup failed (non-fatal):", err);
   }
 
-  // Scenes: delete by metadata filter (SDK types are narrow but runtime supports it)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (index.namespace("scenes").deleteMany as any)({ video_id: { $eq: videoId } });
+  // S3 cleanup — non-fatal, don't block DB delete if this fails
+  try {
+    await s3.send(new DeleteObjectCommand({ Bucket: BUCKET_NAME, Key: video.blobUrl }));
 
-  // Delete original video file from S3
-  await s3.send(new DeleteObjectCommand({ Bucket: BUCKET_NAME, Key: video.blobUrl }));
-
-  // List and delete all processed assets under videos/{videoId}/ (audio + frames)
-  const listed = await s3.send(
-    new ListObjectsV2Command({ Bucket: BUCKET_NAME, Prefix: `videos/${videoId}/` })
-  );
-
-  if (listed.Contents && listed.Contents.length > 0) {
-    await s3.send(
-      new DeleteObjectsCommand({
-        Bucket: BUCKET_NAME,
-        Delete: {
-          Objects: listed.Contents.map((obj) => ({ Key: obj.Key! })),
-          Quiet: true,
-        },
-      })
+    const listed = await s3.send(
+      new ListObjectsV2Command({ Bucket: BUCKET_NAME, Prefix: `videos/${videoId}/` })
     );
+
+    if (listed.Contents && listed.Contents.length > 0) {
+      await s3.send(
+        new DeleteObjectsCommand({
+          Bucket: BUCKET_NAME,
+          Delete: {
+            Objects: listed.Contents.map((obj) => ({ Key: obj.Key! })),
+            Quiet: true,
+          },
+        })
+      );
+    }
+  } catch (err) {
+    console.error("[delete] S3 cleanup failed (non-fatal):", err);
   }
 
-  // Delete DB row — cascade removes asr_chunks, ocr_frames, scene_frames
+  // DB delete — this is the critical operation, always runs
   await db.delete(videos).where(eq(videos.id, videoId));
 
   return Response.json({ ok: true });
