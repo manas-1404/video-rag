@@ -5,6 +5,7 @@ import { eq, desc, or } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import DeleteVideoButton from "@/components/delete-video-button";
 
 type Video = typeof videos.$inferSelect;
 
@@ -123,6 +124,7 @@ function VideoRow({ video }: { video: Video }) {
             <path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         )}
+        {!video.isDemo && <DeleteVideoButton videoId={video.id} />}
       </div>
     </div>
   );
