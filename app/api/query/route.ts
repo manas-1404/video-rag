@@ -86,19 +86,29 @@ const TOOLS: ToolListUnion = [
       {
         name: "get_content_at_beginning",
         description:
-          "Retrieve all content from the first 60 seconds of the video. Use when the user asks about the beginning, opening, introduction, start, or first part of the video.",
+          "Retrieve all content from the beginning of the video. Use when the user asks about the beginning, opening, introduction, start, or first part of the video. If the user specifies a duration (e.g. 'first two minutes', 'opening 30 seconds'), convert it to milliseconds and pass as duration_ms. Default covers the first 60 seconds.",
         parameters: {
           type: Type.OBJECT,
-          properties: {},
+          properties: {
+            duration_ms: {
+              type: Type.INTEGER,
+              description: "How many milliseconds from the start to retrieve. Default is 60000 (first 60 seconds). Example: 120000 for 'first two minutes', 300000 for 'first five minutes'.",
+            },
+          },
         },
       },
       {
         name: "get_content_at_end",
         description:
-          "Retrieve all content from the last 2 minutes of the video. Use when the user asks about the end, conclusion, closing, final section, or last part of the video.",
+          "Retrieve all content from the end of the video. Use when the user asks about the end, conclusion, closing, final section, or last part of the video. If the user specifies a duration (e.g. 'last five minutes', 'final 30 seconds'), convert it to milliseconds and pass as duration_ms. Default covers the last 2 minutes.",
         parameters: {
           type: Type.OBJECT,
-          properties: {},
+          properties: {
+            duration_ms: {
+              type: Type.INTEGER,
+              description: "How many milliseconds from the end to retrieve. Default is 120000 (last 2 minutes). Example: 300000 for 'last five minutes', 30000 for 'last 30 seconds'.",
+            },
+          },
         },
       },
     ],
@@ -252,13 +262,13 @@ async function getContentAt(timestampMs: number, windowMs: number, videoId: stri
   return results;
 }
 
-async function getContentAtBeginning(videoId: string): Promise<ToolResult[]> {
+async function getContentAtBeginning(videoId: string, durationMs: number = 60000): Promise<ToolResult[]> {
   const results: ToolResult[] = [];
 
   const chunks = await db
     .select({ text: asrChunks.text, startMs: asrChunks.startMs })
     .from(asrChunks)
-    .where(and(eq(asrChunks.videoId, videoId), lte(asrChunks.startMs, 60000)))
+    .where(and(eq(asrChunks.videoId, videoId), lte(asrChunks.startMs, durationMs)))
     .orderBy(asrChunks.startMs)
     .limit(5);
 
@@ -269,7 +279,7 @@ async function getContentAtBeginning(videoId: string): Promise<ToolResult[]> {
   const scenes = await db
     .select({ timestampMs: sceneFrames.timestampMs, description: sceneFrames.description })
     .from(sceneFrames)
-    .where(and(eq(sceneFrames.videoId, videoId), lte(sceneFrames.timestampMs, 60000)))
+    .where(and(eq(sceneFrames.videoId, videoId), lte(sceneFrames.timestampMs, durationMs)))
     .orderBy(sceneFrames.timestampMs)
     .limit(5);
 
@@ -280,7 +290,7 @@ async function getContentAtBeginning(videoId: string): Promise<ToolResult[]> {
   const ocr = await db
     .select({ timestampMs: ocrFrames.timestampMs, ocrText: ocrFrames.ocrText })
     .from(ocrFrames)
-    .where(and(eq(ocrFrames.videoId, videoId), lte(ocrFrames.timestampMs, 60000)))
+    .where(and(eq(ocrFrames.videoId, videoId), lte(ocrFrames.timestampMs, durationMs)))
     .orderBy(ocrFrames.timestampMs)
     .limit(5);
 
@@ -291,15 +301,15 @@ async function getContentAtBeginning(videoId: string): Promise<ToolResult[]> {
   return results;
 }
 
-async function getContentAtEnd(videoId: string): Promise<ToolResult[]> {
+async function getContentAtEnd(videoId: string, durationMs: number = 120000): Promise<ToolResult[]> {
   // Derive end of content from the last spoken word's end timestamp
   const [maxRow] = await db
     .select({ maxEndMs: sql<number>`MAX(${asrChunks.endMs})` })
     .from(asrChunks)
     .where(eq(asrChunks.videoId, videoId));
 
-  const maxEndMs = maxRow?.maxEndMs ?? 120000;
-  const startRange = Math.max(0, maxEndMs - 120000);
+  const maxEndMs = maxRow?.maxEndMs ?? durationMs;
+  const startRange = Math.max(0, maxEndMs - durationMs);
   const results: ToolResult[] = [];
 
   const chunks = await db
@@ -558,6 +568,7 @@ Question: "${question}"`,
             query: (call.args?.query as string) ?? "",
             timestampMs: call.args?.timestamp_ms as number | undefined,
             windowMs: (call.args?.window_ms as number | undefined) ?? 5000,
+            durationMs: call.args?.duration_ms as number | undefined,
           }));
 
           toolCalls.forEach(({ toolName, query, timestampMs }) => {
@@ -570,7 +581,7 @@ Question: "${question}"`,
           });
 
           const toolResults = await Promise.all(
-            toolCalls.map(async ({ toolName, query, timestampMs, windowMs }) => {
+            toolCalls.map(async ({ toolName, query, timestampMs, windowMs, durationMs }) => {
               let results: ToolResult[] = [];
               try {
                 if (toolName === "search_transcript") {
@@ -582,9 +593,9 @@ Question: "${question}"`,
                 } else if (toolName === "get_content_at" && timestampMs !== undefined) {
                   results = await getContentAt(timestampMs, windowMs, videoId);
                 } else if (toolName === "get_content_at_beginning") {
-                  results = await getContentAtBeginning(videoId);
+                  results = await getContentAtBeginning(videoId, durationMs);
                 } else if (toolName === "get_content_at_end") {
-                  results = await getContentAtEnd(videoId);
+                  results = await getContentAtEnd(videoId, durationMs);
                 }
               } catch {
                 results = [];
