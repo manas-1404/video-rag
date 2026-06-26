@@ -1,8 +1,8 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { videos, ocrFrames } from "@/lib/db/schema";
-import { eq, and, or, sql } from "drizzle-orm";
-import { Type } from "@google/genai";
+import { videos, ocrFrames, asrChunks, sceneFrames } from "@/lib/db/schema";
+import { eq, and, or, sql, lte, gte } from "drizzle-orm";
+import { Type, ToolListUnion } from "@google/genai";
 import { z } from "zod";
 import { genAI, pinecone } from "@/lib/genai";
 
@@ -16,7 +16,7 @@ const bodySchema = z.object({
     .optional(),
 });
 
-const TOOLS = [
+const TOOLS: ToolListUnion = [
   {
     functionDeclarations: [
       {
@@ -64,6 +64,43 @@ const TOOLS = [
           required: ["query"],
         },
       },
+      {
+        name: "get_content_at",
+        description:
+          "Retrieve all content (speech, visuals, on-screen text) at a specific timestamp in the video by querying the database directly. Use this when the user references a specific time such as '2:30', '45 seconds in', or 'at the 3 minute mark'. This is a direct time-based lookup — do not call semantic search tools for time-specific questions.",
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            timestamp_ms: {
+              type: Type.INTEGER,
+              description: "The timestamp in milliseconds (e.g. 150000 for 2:30, 45000 for 0:45)",
+            },
+            window_ms: {
+              type: Type.INTEGER,
+              description: "Milliseconds before and after the timestamp to search. Default is 5000 (±5 seconds).",
+            },
+          },
+          required: ["timestamp_ms"],
+        },
+      },
+      {
+        name: "get_content_at_beginning",
+        description:
+          "Retrieve all content from the first 60 seconds of the video. Use when the user asks about the beginning, opening, introduction, start, or first part of the video.",
+        parameters: {
+          type: Type.OBJECT,
+          properties: {},
+        },
+      },
+      {
+        name: "get_content_at_end",
+        description:
+          "Retrieve all content from the last 2 minutes of the video. Use when the user asks about the end, conclusion, closing, final section, or last part of the video.",
+        parameters: {
+          type: Type.OBJECT,
+          properties: {},
+        },
+      },
     ],
   },
 ];
@@ -73,6 +110,8 @@ type ToolResult = {
   text: string;
   source: "transcript" | "ocr" | "scene";
 };
+
+type WordTimestamp = { word: string; start_ms: number; end_ms: number };
 
 async function embedQuery(question: string): Promise<number[]> {
   const result = await genAI.models.embedContent({
@@ -133,6 +172,170 @@ async function searchScene(query: string, videoId: string): Promise<ToolResult[]
     text: (m.metadata?.sentence as string) ?? "",
     source: "scene" as const,
   }));
+}
+
+async function getContentAt(timestampMs: number, windowMs: number, videoId: string): Promise<ToolResult[]> {
+  const lower = timestampMs - windowMs;
+  const upper = timestampMs + windowMs;
+  const results: ToolResult[] = [];
+
+  // Find transcript chunks that overlap the window [lower, upper].
+  // A chunk overlaps if it starts before upper AND ends after lower.
+  const chunks = await db
+    .select({
+      text: asrChunks.text,
+      startMs: asrChunks.startMs,
+      wordTimestamps: asrChunks.wordTimestamps,
+    })
+    .from(asrChunks)
+    .where(
+      and(
+        eq(asrChunks.videoId, videoId),
+        lte(asrChunks.startMs, upper),
+        gte(asrChunks.endMs, lower),
+      )
+    )
+    .orderBy(sql`ABS(${asrChunks.startMs} - ${timestampMs})`)
+    .limit(3);
+
+  for (const chunk of chunks) {
+    const words = (chunk.wordTimestamps as WordTimestamp[]) ?? [];
+    const pinpointWords = words
+      .filter((w) => w.start_ms >= lower && w.start_ms <= upper)
+      .map((w) => w.word.trim())
+      .join(" ")
+      .trim();
+
+    const text = pinpointWords
+      ? `At ${timestampMs}ms: "${pinpointWords}" | Context: "${chunk.text}"`
+      : chunk.text;
+
+    results.push({ timestampMs: chunk.startMs, text, source: "transcript" });
+  }
+
+  // Scene descriptions within the window, closest first
+  const scenes = await db
+    .select({ timestampMs: sceneFrames.timestampMs, description: sceneFrames.description })
+    .from(sceneFrames)
+    .where(
+      and(
+        eq(sceneFrames.videoId, videoId),
+        gte(sceneFrames.timestampMs, lower),
+        lte(sceneFrames.timestampMs, upper),
+      )
+    )
+    .orderBy(sql`ABS(${sceneFrames.timestampMs} - ${timestampMs})`)
+    .limit(5);
+
+  for (const scene of scenes) {
+    results.push({ timestampMs: scene.timestampMs, text: scene.description, source: "scene" });
+  }
+
+  // OCR frames within the window, closest first
+  const ocr = await db
+    .select({ timestampMs: ocrFrames.timestampMs, ocrText: ocrFrames.ocrText })
+    .from(ocrFrames)
+    .where(
+      and(
+        eq(ocrFrames.videoId, videoId),
+        gte(ocrFrames.timestampMs, lower),
+        lte(ocrFrames.timestampMs, upper),
+      )
+    )
+    .orderBy(sql`ABS(${ocrFrames.timestampMs} - ${timestampMs})`)
+    .limit(5);
+
+  for (const row of ocr) {
+    results.push({ timestampMs: row.timestampMs, text: (row.ocrText ?? []).join(" | "), source: "ocr" });
+  }
+
+  return results;
+}
+
+async function getContentAtBeginning(videoId: string): Promise<ToolResult[]> {
+  const results: ToolResult[] = [];
+
+  const chunks = await db
+    .select({ text: asrChunks.text, startMs: asrChunks.startMs })
+    .from(asrChunks)
+    .where(and(eq(asrChunks.videoId, videoId), lte(asrChunks.startMs, 60000)))
+    .orderBy(asrChunks.startMs)
+    .limit(5);
+
+  for (const chunk of chunks) {
+    results.push({ timestampMs: chunk.startMs, text: chunk.text, source: "transcript" });
+  }
+
+  const scenes = await db
+    .select({ timestampMs: sceneFrames.timestampMs, description: sceneFrames.description })
+    .from(sceneFrames)
+    .where(and(eq(sceneFrames.videoId, videoId), lte(sceneFrames.timestampMs, 60000)))
+    .orderBy(sceneFrames.timestampMs)
+    .limit(5);
+
+  for (const scene of scenes) {
+    results.push({ timestampMs: scene.timestampMs, text: scene.description, source: "scene" });
+  }
+
+  const ocr = await db
+    .select({ timestampMs: ocrFrames.timestampMs, ocrText: ocrFrames.ocrText })
+    .from(ocrFrames)
+    .where(and(eq(ocrFrames.videoId, videoId), lte(ocrFrames.timestampMs, 60000)))
+    .orderBy(ocrFrames.timestampMs)
+    .limit(5);
+
+  for (const row of ocr) {
+    results.push({ timestampMs: row.timestampMs, text: (row.ocrText ?? []).join(" | "), source: "ocr" });
+  }
+
+  return results;
+}
+
+async function getContentAtEnd(videoId: string): Promise<ToolResult[]> {
+  // Derive end of content from the last spoken word's end timestamp
+  const [maxRow] = await db
+    .select({ maxEndMs: sql<number>`MAX(${asrChunks.endMs})` })
+    .from(asrChunks)
+    .where(eq(asrChunks.videoId, videoId));
+
+  const maxEndMs = maxRow?.maxEndMs ?? 120000;
+  const startRange = Math.max(0, maxEndMs - 120000);
+  const results: ToolResult[] = [];
+
+  const chunks = await db
+    .select({ text: asrChunks.text, startMs: asrChunks.startMs })
+    .from(asrChunks)
+    .where(and(eq(asrChunks.videoId, videoId), gte(asrChunks.startMs, startRange)))
+    .orderBy(asrChunks.startMs)
+    .limit(5);
+
+  for (const chunk of chunks) {
+    results.push({ timestampMs: chunk.startMs, text: chunk.text, source: "transcript" });
+  }
+
+  const scenes = await db
+    .select({ timestampMs: sceneFrames.timestampMs, description: sceneFrames.description })
+    .from(sceneFrames)
+    .where(and(eq(sceneFrames.videoId, videoId), gte(sceneFrames.timestampMs, startRange)))
+    .orderBy(sceneFrames.timestampMs)
+    .limit(5);
+
+  for (const scene of scenes) {
+    results.push({ timestampMs: scene.timestampMs, text: scene.description, source: "scene" });
+  }
+
+  const ocr = await db
+    .select({ timestampMs: ocrFrames.timestampMs, ocrText: ocrFrames.ocrText })
+    .from(ocrFrames)
+    .where(and(eq(ocrFrames.videoId, videoId), gte(ocrFrames.timestampMs, startRange)))
+    .orderBy(ocrFrames.timestampMs)
+    .limit(5);
+
+  for (const row of ocr) {
+    results.push({ timestampMs: row.timestampMs, text: (row.ocrText ?? []).join(" | "), source: "ocr" });
+  }
+
+  return results;
 }
 
 function emitAnswer(
@@ -224,24 +427,31 @@ export async function POST(request: Request) {
             role: "user",
             parts: [
               {
-                text: `You are a video intelligence assistant. Answer the question by searching the video using these three tools:
+                text: `You are a video intelligence assistant. Answer the question by searching the video using these tools:
 
 - search_transcript: spoken audio — what was said, explained, or discussed
 - search_ocr: text visible on screen — slides, titles, captions, code, whiteboards
 - search_scene: visual descriptions — what is shown, who appears, objects, actions, layout
+- get_content_at: direct time-based lookup — retrieves speech, visuals, and on-screen text at a specific timestamp
+- get_content_at_beginning: retrieves all content from the first 60 seconds
+- get_content_at_end: retrieves all content from the last 2 minutes
 ${conversationContext}
+TOOL ROUTING GUIDE (check temporal routing first):
+- TEMPORAL: Any specific timestamp in the question ("at 2:30", "around 45 seconds", "the 3 minute mark") → call get_content_at with timestamp_ms converted to milliseconds. Do not call semantic search tools first.
+- TEMPORAL: Question about the beginning, opening, introduction, or start of the video → call get_content_at_beginning. Do not call semantic search tools first.
+- TEMPORAL: Question about the end, conclusion, closing, or final part of the video → call get_content_at_end. Do not call semantic search tools first.
+- Spoken facts, explanations, definitions → search_transcript
+- Slide content, on-screen text, code, equations → search_ocr
+- Visual layout, demonstrations, who/what appears on screen → search_scene
+- When unsure, search all three semantic tools in parallel
+- After temporal results, you may call semantic search tools if more context is still needed
+
 SEARCH RULES:
 1. First pass: identify which tools are relevant to the question and call them simultaneously with affirmative-form queries (e.g. "neural network architecture diagram" not "what does the neural network look like").
 2. After each retrieval, explicitly state: (a) what evidence you confirmed, (b) what specific gap remains. If your gap statement is vague ("I need more info"), stop immediately and synthesize.
 3. Reformulate by targeting the specific gap — not by rephrasing the original question. Use synonyms, narrower terms, or decompose into sub-queries. Never call the same tool with the same query twice.
 4. For list/enumeration questions ("all X", "every time Y", "what topics"), run multiple varied queries across tools — one search will miss instances.
 5. Stop searching when: you have sufficient evidence OR results overlap heavily with previous iterations OR you have made 6 attempts. Always synthesize something — never refuse to answer.
-
-TOOL ROUTING GUIDE:
-- Spoken facts, explanations, definitions → search_transcript
-- Slide content, on-screen text, code, equations → search_ocr
-- Visual layout, demonstrations, who/what appears on screen → search_scene
-- When unsure, search all three in parallel
 
 ANSWER RULES:
 - Use only what the tools returned. Do not add external knowledge.
@@ -342,18 +552,25 @@ Question: "${question}"`,
             break;
           }
 
-          // Execute all function calls in this iteration in parallel
+          // Extract all args from each function call
           const toolCalls = functionCalls.map((call) => ({
             toolName: call.name ?? "",
-            query: (call.args?.query as string) ?? question,
+            query: (call.args?.query as string) ?? "",
+            timestampMs: call.args?.timestamp_ms as number | undefined,
+            windowMs: (call.args?.window_ms as number | undefined) ?? 5000,
           }));
 
-          toolCalls.forEach(({ toolName, query }) => {
-            emit({ type: "tool_call", tool: toolName, query });
+          toolCalls.forEach(({ toolName, query, timestampMs }) => {
+            const displayQuery =
+              query ||
+              (timestampMs !== undefined
+                ? `${Math.floor(timestampMs / 60000)}:${String(Math.floor((timestampMs % 60000) / 1000)).padStart(2, "0")}`
+                : "");
+            emit({ type: "tool_call", tool: toolName, query: displayQuery });
           });
 
           const toolResults = await Promise.all(
-            toolCalls.map(async ({ toolName, query }) => {
+            toolCalls.map(async ({ toolName, query, timestampMs, windowMs }) => {
               let results: ToolResult[] = [];
               try {
                 if (toolName === "search_transcript") {
@@ -362,6 +579,12 @@ Question: "${question}"`,
                   results = await searchOcr(query, videoId);
                 } else if (toolName === "search_scene") {
                   results = await searchScene(query, videoId);
+                } else if (toolName === "get_content_at" && timestampMs !== undefined) {
+                  results = await getContentAt(timestampMs, windowMs, videoId);
+                } else if (toolName === "get_content_at_beginning") {
+                  results = await getContentAtBeginning(videoId);
+                } else if (toolName === "get_content_at_end") {
+                  results = await getContentAtEnd(videoId);
                 }
               } catch {
                 results = [];
