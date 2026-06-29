@@ -32,7 +32,7 @@ export default async function Home() {
 
         <p className="fade-up fade-up-3 text-lg text-slate-400 max-w-xl leading-relaxed mb-5">
           Upload a lecture, podcast, or conference talk. Ask it a question in plain English.
-          Get the exact moment — timestamped, and ready to jump to.
+          Get the exact moment , timestamped, and ready to jump to.
         </p>
 
         <div className="fade-up fade-up-3 flex items-center justify-center gap-2 flex-wrap mb-10">
@@ -99,7 +99,7 @@ export default async function Home() {
                   </div>
                 </div>
                 <div className="bubble-ai text-sm px-3 py-2.5 leading-relaxed text-slate-300">
-                  She covers it at <span className="text-slate-100 font-medium">38:12</span> — explaining how gradient updates drive the model toward a local minimum, with the loss surface drawn on the whiteboard.
+                  She covers it at <span className="text-slate-100 font-medium">38:12</span> , explaining how gradient updates drive the model toward a local minimum, with the loss surface drawn on the whiteboard.
                 </div>
                 <span className="timestamp-badge text-sm">▶ Jump to 38:12</span>
               </div>
@@ -205,7 +205,7 @@ export default async function Home() {
                 step: "01",
                 icon: "⬆️",
                 title: "Upload your lecture or podcast",
-                body: "Drop any MP4, MOV, or WebM — up to 20 minutes. Meridian starts indexing automatically in the background.",
+                body: "Drop any MP4, MOV, or WebM , up to 20 minutes. Meridian starts indexing automatically in the background.",
               },
               {
                 step: "02",

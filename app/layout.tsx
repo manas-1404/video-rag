@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Meridian — Search inside your lectures and podcasts",
+  title: "Meridian: Search inside your lectures and podcasts",
   description:
     "Upload a lecture, podcast, or conference talk and ask it anything. Get precise timestamped answers from speech, slides, and visual context.",
 };

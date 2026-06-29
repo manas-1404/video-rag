@@ -28,7 +28,7 @@ function StepRow({ step, isLast }: { step: AgentStep; isLast: boolean }) {
           ) : step.count > 0 ? (
             <span style={{ color: "#34d399", fontSize: "10px" }}>✓</span>
           ) : (
-            <span style={{ color: "#475569", fontSize: "10px" }}>—</span>
+            <span style={{ color: "#475569", fontSize: "10px" }}>·</span>
           )}
         </div>
         {!isLast && (
