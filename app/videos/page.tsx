@@ -6,6 +6,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import DeleteVideoButton from "@/components/delete-video-button";
+import VideoStatusPoller from "@/components/video-status-poller";
 
 type Video = typeof videos.$inferSelect;
 
@@ -46,6 +47,8 @@ export default async function VideosPage() {
           Upload video
         </Link>
       </div>
+
+      <VideoStatusPoller initial={userVideos.map((v) => ({ id: v.id, status: v.status }))} />
 
       {userVideos.length === 0 ? (
         <EmptyState />
