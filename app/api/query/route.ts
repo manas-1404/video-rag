@@ -179,7 +179,7 @@ async function searchTranscript(query: string, videoId: string): Promise<ToolRes
   const index = pinecone.index(process.env.PINECONE_INDEX_NAME!);
   const result = await index.query({
     vector,
-    topK: 5,
+    topK: 8,
     filter: { video_id: { $eq: videoId } },
     includeMetadata: true,
     namespace: "transcript",
@@ -217,7 +217,7 @@ async function searchScene(query: string, videoId: string): Promise<ToolResult[]
   const index = pinecone.index(process.env.PINECONE_INDEX_NAME!);
   const result = await index.query({
     vector,
-    topK: 5,
+    topK: 8,
     filter: { video_id: { $eq: videoId } },
     includeMetadata: true,
     namespace: "scenes",
