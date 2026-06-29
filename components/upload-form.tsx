@@ -21,6 +21,30 @@ export default function UploadForm() {
       return;
     }
 
+    if (file.size > 500 * 1024 * 1024) {
+      setPhase({ type: "error", message: "File exceeds the 500 MB limit. Please compress your video or use a shorter clip." });
+      return;
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const video = document.createElement("video");
+      video.preload = "metadata";
+      video.onloadedmetadata = () => {
+        URL.revokeObjectURL(url);
+        if (video.duration > 20 * 60) {
+          reject(new Error("Video exceeds the 20-minute limit. Please upload a shorter clip."));
+        } else {
+          resolve();
+        }
+      };
+      video.onerror = () => { URL.revokeObjectURL(url); resolve(); };
+      video.src = url;
+    }).catch((e) => {
+      setPhase({ type: "error", message: (e as Error).message });
+      throw e;
+    });
+
     try {
       setPhase({ type: "uploading", progress: 0, fileName: file.name });
 
@@ -184,7 +208,7 @@ export default function UploadForm() {
           <span className="w-1.5 h-1.5 rounded-full bg-slate-700 inline-block" />
           <span>WebM</span>
           <span className="w-1.5 h-1.5 rounded-full bg-slate-700 inline-block" />
-          <span>Up to 500 MB</span>
+          <span>Up to 20 min · 500 MB</span>
         </div>
 
         {/* Modality hint */}
