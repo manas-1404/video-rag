@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Meridian: Ask anything about your video",
+  title: "Meridian — Search inside your lectures and podcasts",
   description:
-    "Upload a video and ask natural language questions. Get precise timestamped answers from speech, on-screen text, and visual context.",
+    "Upload a lecture, podcast, or conference talk and ask it anything. Get precise timestamped answers from speech, slides, and visual context.",
 };
 
 export default function RootLayout({
