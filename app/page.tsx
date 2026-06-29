@@ -39,7 +39,7 @@ export default async function Home() {
           <span className="text-sm text-slate-600">Works best with</span>
           {["Lectures", "Podcasts", "Conference talks", "Interviews", "Tutorials"].map((t) => (
             <span key={t}
-              className="text-xs px-2.5 py-1 rounded-full text-slate-400"
+              className="text-sm px-2.5 py-1 rounded-full text-slate-400"
               style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)" }}>
               {t}
             </span>
@@ -62,7 +62,7 @@ export default async function Home() {
             <div className="w-2.5 h-2.5 rounded-full" style={{ background: "rgba(255,80,70,0.55)" }} />
             <div className="w-2.5 h-2.5 rounded-full" style={{ background: "rgba(255,190,50,0.55)" }} />
             <div className="w-2.5 h-2.5 rounded-full" style={{ background: "rgba(50,210,80,0.55)" }} />
-            <span className="ml-3 text-xs text-slate-600 font-mono">meridian · mit-ocw-6.006-lecture.mp4</span>
+            <span className="ml-3 text-sm text-slate-600 font-mono">meridian · mit-ocw-6.006-lecture.mp4</span>
           </div>
 
           <div className="flex" style={{ minHeight: "260px" }}>
@@ -83,10 +83,10 @@ export default async function Home() {
               </div>
               <div className="rounded-xl p-3" style={{ background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.22)" }}>
                 <div className="flex items-center gap-2 mb-1.5">
-                  <span className="text-xs font-mono text-cyan-400">▶ 38:12</span>
-                  <span className="signal-transcript text-xs font-semibold px-2 py-0.5 rounded-full">Speech</span>
+                  <span className="text-sm font-mono text-cyan-400">▶ 38:12</span>
+                  <span className="signal-transcript text-sm font-semibold px-2 py-0.5 rounded-full">Speech</span>
                 </div>
-                <p className="text-xs text-slate-400 italic">&ldquo;…gradient updates move the model toward a local minimum on the loss surface…&rdquo;</p>
+                <p className="text-sm text-slate-400 italic">&ldquo;…gradient updates move the model toward a local minimum on the loss surface…&rdquo;</p>
               </div>
             </div>
 
@@ -94,17 +94,17 @@ export default async function Home() {
             <div className="flex-1 flex flex-col justify-between p-4 gap-3">
               <div className="space-y-3">
                 <div className="flex justify-end">
-                  <div className="bubble-user text-xs px-3 py-2 max-w-[85%]">
+                  <div className="bubble-user text-sm px-3 py-2 max-w-[85%]">
                     When does she explain gradient descent?
                   </div>
                 </div>
-                <div className="bubble-ai text-xs px-3 py-2.5 leading-relaxed text-slate-300">
+                <div className="bubble-ai text-sm px-3 py-2.5 leading-relaxed text-slate-300">
                   She covers it at <span className="text-slate-100 font-medium">38:12</span> — explaining how gradient updates drive the model toward a local minimum, with the loss surface drawn on the whiteboard.
                 </div>
-                <span className="timestamp-badge text-xs">▶ Jump to 38:12</span>
+                <span className="timestamp-badge text-sm">▶ Jump to 38:12</span>
               </div>
               <div className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)" }}>
-                <span className="text-xs text-slate-600 flex-1">Ask anything about the lecture…</span>
+                <span className="text-sm text-slate-600 flex-1">Ask anything about the lecture…</span>
                 <div className="w-5 h-5 rounded-md flex items-center justify-center" style={{ background: "linear-gradient(135deg,#5b5fef,#7c3aed)" }}>
                   <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
                     <path d="M8 4.5H1M4.5 1l3.5 3.5-3.5 3.5" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
@@ -119,7 +119,7 @@ export default async function Home() {
       {/* ── EXAMPLE QUERIES ──────────────────────────────────── */}
       <section className="px-6 py-8">
         <div className="max-w-3xl mx-auto">
-          <p className="text-xs text-slate-600 text-center mb-5 uppercase tracking-widest font-bold">Things people actually ask</p>
+          <p className="text-sm text-slate-600 text-center mb-5 uppercase tracking-widest font-bold">Things people actually ask</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[
               { q: "When did the speaker first mention the Doppler effect?", tag: "Lecture" },
@@ -130,8 +130,8 @@ export default async function Home() {
               <div key={q} className="glass-card px-4 py-3.5 flex items-start gap-3 text-left">
                 <span className="text-slate-600 mt-0.5 shrink-0 text-sm">↗</span>
                 <div>
-                  <p className="text-sm text-slate-300 leading-snug">{q}</p>
-                  <span className="text-xs text-slate-600 mt-1.5 block">{tag}</span>
+                  <p className="text-base text-slate-300 leading-snug">{q}</p>
+                  <span className="text-sm text-slate-500 mt-1.5 block">{tag}</span>
                 </div>
               </div>
             ))}
@@ -142,7 +142,7 @@ export default async function Home() {
       {/* ── THREE CHANNELS ───────────────────────────────────── */}
       <section className="px-6 py-10">
         <div className="max-w-4xl mx-auto">
-          <p className="text-xs font-bold uppercase tracking-widest text-slate-600 text-center mb-3">How Meridian sees your video</p>
+          <p className="text-sm font-bold uppercase tracking-widest text-slate-600 text-center mb-3">How Meridian sees your video</p>
           <p className="text-2xl font-semibold text-slate-100 text-center mb-8">Three layers. One answer.</p>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
@@ -196,7 +196,7 @@ export default async function Home() {
       {/* ── HOW IT WORKS ─────────────────────────────────────── */}
       <section className="px-6 py-10">
         <div className="max-w-2xl mx-auto">
-          <p className="text-xs font-bold uppercase tracking-widest text-slate-600 text-center mb-3">Simple by design</p>
+          <p className="text-sm font-bold uppercase tracking-widest text-slate-600 text-center mb-3">Simple by design</p>
           <p className="text-2xl font-semibold text-slate-100 text-center mb-8">Up and running in minutes</p>
 
           <div className="space-y-3">
@@ -227,7 +227,7 @@ export default async function Home() {
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-1">
-                    <span className="font-mono text-xs font-bold text-indigo-500">{step}</span>
+                    <span className="font-mono text-sm font-bold text-indigo-500">{step}</span>
                     <p className="font-semibold text-base text-slate-100">{title}</p>
                   </div>
                   <p className="text-sm text-slate-400 leading-relaxed">{body}</p>
